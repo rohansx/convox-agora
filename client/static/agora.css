@@ -1,0 +1,86 @@
+/* Convox on Agora: additions on top of join.css (the Convox stage demo, reused as-is).
+   Brand tokens are the convox.ai landing page's: warm paper, warm ink, orange accent, Geist. */
+:root {
+  --bg: #fbfaf7;
+  --surface: #ffffff;
+  --text: #1f1c17;
+  --muted: #7a746a;
+  --line: #e9e5dc;
+  --accent: #ff5b14;
+  --accent-soft: #ffeadf;
+  --font: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans",
+    "Noto Sans Devanagari", "Noto Sans Kannada", "Noto Sans Tamil", "Noto Sans Telugu", sans-serif;
+  --mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --shadow-sm: 0 1px 2px rgba(31,28,23,.08), 0 2px 6px -2px rgba(31,28,23,.08);
+}
+
+/* logo: the waveform that turns from ink to orange, CONVOX AI */
+.logo { display: inline-flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; }
+.logo .mark { width: 26px; height: 26px; flex: none; }
+.logo .word { font-weight: 600; font-size: 15px; letter-spacing: .16em; line-height: 1; }
+.logo .word em { font-style: normal; color: var(--accent); margin-left: .5em; }
+.on-agora { font: 500 13px/1 var(--mono); color: var(--muted); padding: 6px 10px;
+  border: 1px solid var(--line); border-radius: 999px; }
+.start { background: var(--text); }
+
+/* host: purpose chips */
+.purpose { display: flex; gap: 10px; flex-wrap: wrap; margin: 20px 0 4px; }
+.chip { font-size: 16px; padding: 8px 16px; border-radius: 999px; border: 1px solid var(--line);
+  background: var(--surface); cursor: pointer; }
+.chip:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.chip input { position: absolute; opacity: 0; pointer-events: none; }
+.role-tag { display: block; font: 600 12px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 6px; }
+
+/* host: live view under the QR codes */
+.live { display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; margin-top: 24px; align-items: start; }
+.live .talk { margin-top: 0; }
+.side { display: grid; gap: 20px; }
+.box { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 18px 20px; }
+.box h2 { margin: 0 0 12px; font: 600 13px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase;
+  color: var(--muted); }
+.empty { color: var(--muted); font-size: 16px; margin: 0; }
+@media (max-width: 900px) { .live { grid-template-columns: 1fr; } }
+
+/* call card */
+.detail { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-bottom: 10px;
+  background: var(--surface); animation: rise .3s ease; }
+.detail-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.detail-k { font: 600 12px/1.2 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.detail-v { font-size: 22px; font-weight: 600; line-height: 1.3; margin: 4px 0 0; }
+.detail-en { font-size: 14px; color: var(--muted); margin: 2px 0 0; }
+.st { font: 600 12px/1 var(--mono); padding: 5px 10px; border-radius: 999px; background: #f0eee8; color: var(--muted); }
+.st.awaiting { background: #fff3d6; color: var(--warn); }
+.st.confirmed { background: var(--play-soft); color: var(--good); }
+.st.rejected { background: #fbe9e7; color: var(--bad); }
+.confirm { display: flex; gap: 10px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+.confirm span { font-weight: 600; }
+.yes, .no { border: 0; border-radius: 12px; padding: 12px 22px; font-weight: 700; font-size: 18px; }
+.yes { background: var(--good); color: #fff; }
+.no { background: #f0eee8; color: var(--text); }
+
+/* action log */
+.log { display: grid; gap: 6px; max-height: 40vh; overflow-y: auto; font-size: 15px; }
+.log-row { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: baseline; animation: rise .3s ease; }
+.log-t { font: 13px/1.4 var(--mono); color: var(--muted); }
+.tool { font: 600 12px/1.4 var(--mono); color: var(--accent); background: var(--accent-soft);
+  padding: 1px 7px; border-radius: 6px; margin-right: 6px; }
+
+/* outcome banner */
+.outcome { margin-top: 20px; padding: 18px 22px; border-radius: 16px; border: 1px solid; font-size: 18px; }
+.outcome b { display: block; font-size: 22px; margin-bottom: 4px; }
+.outcome.ok { background: var(--play-soft); border-color: #bfe3cf; }
+.outcome.follow { background: #fff3d6; border-color: #f0d79a; }
+.outcome.unclear { background: #f0eee8; border-color: var(--line); }
+.outcome p { margin: 6px 0 0; }
+
+/* phone additions */
+body.phone .phone-main { grid-template-rows: auto auto auto 1fr auto; gap: 8px; }
+.phone-card { display: grid; gap: 0; }
+.phone-card .detail-v { font-size: 26px; }
+body.phone .phone-stage { min-height: 220px; }
+body.phone .orb { width: min(46vw, 180px); }
+.line .tr { display: block; }
+.line.theirs { background: var(--surface); }
+.line .who { display: block; font-size: 13px; color: var(--muted); }
+body.phone .outcome { font-size: 17px; }

@@ -21,6 +21,7 @@ from anthropic import AsyncAnthropic
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -160,14 +161,16 @@ async def create_call(body: CallIn):
         role: Person(role, p.speak_lang, p.text_lang or p.speak_lang, p.gender)
         for role, p in (("rider", body.rider), ("customer", body.customer))
     }
-    call = Call(channel=ch, people=people, purpose=body.purpose)
+    base = os.environ.get("PUBLIC_URL", "")
+    call = Call(channel=ch, people=people, purpose=body.purpose,
+                links={r: f"{base}/phone?ch={ch}&role={r}" for r in ROLES})
     CALLS[ch] = call
     call.add_log(f"Context loaded: rider {people['rider'].speak_lang}, customer "
                  f"{people['customer'].speak_lang}, purpose {body.purpose or 'unknown'}",
                  "get_call_context")
     await agora.start_agents(call, http)
     return {"channel": ch, "agents": call.agent_ids,
-            "links": {r: f"{os.environ.get('PUBLIC_URL', '')}/?ch={ch}&role={r}" for r in ROLES}}
+            "links": call.links}
 
 
 @app.get("/calls/{ch}/join")
@@ -206,6 +209,22 @@ async def events(ch: str, request: Request):
             call.subs.discard(q)
 
     return StreamingResponse(gen(), media_type="text/event-stream")
+
+
+class PresenceIn(BaseModel):
+    role: str
+
+
+@app.post("/calls/{ch}/presence")
+async def presence(ch: str, body: PresenceIn):
+    call = get_call(ch)
+    if body.role not in ROLES:
+        raise HTTPException(400, "role must be rider or customer")
+    if not call.joined.get(body.role):
+        call.joined[body.role] = True
+        call.publish("presence", {"role": body.role})
+        call.add_log(f"{body.role.capitalize()} phone joined the Agora channel")
+    return {"ok": True}
 
 
 class ConfirmIn(BaseModel):
@@ -265,8 +284,16 @@ async def platform_page():
 
 
 @app.get("/")
-async def client_page():
+async def host_page():
     return FileResponse(ROOT / "client" / "index.html")
+
+
+@app.get("/phone")
+async def phone_page():
+    return FileResponse(ROOT / "client" / "phone.html")
+
+
+app.mount("/static", StaticFiles(directory=ROOT / "client" / "static"), name="static")
 
 
 @app.get("/health")

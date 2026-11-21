@@ -1,0 +1,50 @@
+/* Convox on Agora host page: landing.css + try.css (the convox.ai /try page, reused as-is),
+   plus the pieces /try doesn't have: language picker on the stage bar, QR codes inside the
+   phone screens, the call card and the agent's action log. Same tokens as landing.css. */
+.picker-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pick { height: 40px; padding: 0 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,.35);
+  background: rgba(255,255,255,.18); color: #2b170e; font: 500 14px var(--sans);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.pick option { color: var(--ink); }
+
+/* the QR sits inside the phone screen until that phone joins */
+.join-qr { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; padding: 0 calc(var(--pw) * .08); text-align: center; }
+.join-qr .qr-box { width: 78%; aspect-ratio: 1; background: #fff; border-radius: 14px; padding: 6px; }
+.join-qr .qr-box svg { width: 100%; height: 100%; display: block; }
+.join-qr p { margin: 0; font-size: calc(var(--pw) * .045); color: rgba(255,255,255,.75); }
+.join-qr a { font: calc(var(--pw) * .032) var(--mono); color: rgba(255,255,255,.5); word-break: break-all; }
+
+/* card + actions under the stage */
+.agent-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 8px var(--gut) 8px; }
+.panel { background: var(--paper); border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px;
+  box-shadow: var(--shadow-sm); }
+.panel h2 { font-size: 22px; font-weight: 450; letter-spacing: -.02em; margin-bottom: 4px; }
+.panel .try-muted { margin-bottom: 14px; }
+.detail { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-bottom: 10px;
+  background: var(--bg); animation: pop .3s cubic-bezier(.2,.9,.3,1.15) both; }
+.detail-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.detail-k { font: 500 11.5px/1.2 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.detail-v { font-size: 20px; font-weight: 500; letter-spacing: -.015em; line-height: 1.3; margin-top: 4px; }
+.detail-en { font-size: 14px; color: var(--ink-2); margin-top: 2px; }
+.st { font: 500 11.5px/1 var(--mono); padding: 5px 9px; border-radius: 999px; background: #f0ece4; color: var(--muted); white-space: nowrap; }
+.st.awaiting { background: #fff1d6; color: #a86400; }
+.st.confirmed { background: #e3f5ea; color: var(--good); }
+.st.rejected { background: #fde8e6; color: #b91c1c; }
+.empty { font-size: 14px; color: var(--faint); }
+.log { display: flex; flex-direction: column; gap: 8px; max-height: 360px; overflow-y: auto; font-size: 14.5px; }
+.log-row { display: grid; grid-template-columns: 74px 1fr; gap: 10px; align-items: baseline;
+  padding-top: 8px; border-top: 1px solid var(--line); animation: pop .3s ease both; }
+.log-t { font: 12px var(--mono); color: var(--muted); }
+.tool { font: 500 11.5px var(--mono); color: var(--accent); background: var(--accent-soft);
+  padding: 2px 7px; border-radius: 6px; margin-right: 7px; }
+
+/* outcome dialog: try.css's .try-outcome, with a status line */
+.oc-status { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 500;
+  padding: 6px 12px; border-radius: 999px; align-self: flex-start; }
+.oc-status.ok { background: #e3f5ea; color: var(--good); }
+.oc-status.follow { background: #fff1d6; color: #a86400; }
+.oc-status.unclear { background: #f0ece4; color: var(--muted); }
+.oc-next { font-size: 16px; }
+
+@media (max-width: 860px) { .agent-grid { grid-template-columns: 1fr; } }

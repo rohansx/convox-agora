@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#fbfaf7">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<title>Convox</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300..600&family=Geist+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/static/join.css">
+<link rel="stylesheet" href="/static/agora.css">
+<script src="https://cdn.jsdelivr.net/npm/agora-rtc-sdk-ng@4.22.0/AgoraRTC_N-production.js"></script>
+<script src="/static/common.js"></script>
+</head>
+<body class="phone" data-state="idle">
+<main class="phone-main">
+  <header class="phone-top">
+    <h1 class="phone-lang" id="me"></h1>
+    <p class="phone-with" id="with"></p>
+  </header>
+  <section class="phone-stage">
+    <button type="button" class="tap" id="tap"><span class="tap-native" id="tap-native"></span><span class="tap-en">Start</span></button>
+    <div class="orb" id="orb" hidden><div class="orb-ring"></div><div class="orb-core"></div><p class="orb-text" id="orb-text"></p></div>
+    <p class="phone-status" id="status"></p>
+  </section>
+  <section class="phone-card" id="card"></section>
+  <section class="phone-lines" id="lines" aria-live="polite"></section>
+  <footer class="phone-bottom">
+    <div id="outcome"></div>
+    <button type="button" class="leave" id="leave" hidden></button>
+  </footer>
+</main>
+<script>
+const params = new URLSearchParams(location.search);
+const ch = params.get("ch"), role = params.get("role");
+const state = { lines: [], details: {}, log: [], outcome: null, ended: false };
+let rtc = null, mic = null, info = null;
+
+function setState(s) {
+  document.body.dataset.state = s;
+  if (info) $("#orb-text").textContent = s === "speaking" ? ui(info.me.text_lang).speaking : ui(info.me.text_lang).listening;
+}
+
+function render() {
+  const t = ui(info.me.text_lang);
+  const details = Object.values(state.details);
+  $("#card").innerHTML = details.length
+    ? `<p class="phone-status" style="text-align:left">${esc(t.card)}</p>${details.map(d => detailHTML(d, role, info.me.text_lang)).join("")}` : "";
+  $("#card").querySelectorAll("button[data-id]").forEach(b => b.onclick = () => {
+    b.disabled = true;
+    api(`/calls/${ch}/confirm`, { detail_id: b.dataset.id, role, yes: b.dataset.yes === "1" })
+      .catch(e => { $("#status").textContent = e.message; b.disabled = false; });
+  });
+  // last few lines: what I said, and what the other person said in my language
+  $("#lines").innerHTML = state.lines.filter(l => l.speaker !== "system").slice(-4).map(l => l.speaker === role
+    ? `<p class="line mine" data-who="you">${esc(l.text)}</p>`
+    : `<p class="line theirs"><span class="who">${esc(l.speaker)}</span>${esc(l.translation || "…")}</p>`).join("");
+  $("#outcome").innerHTML = outcomeHTML(state.outcome, role);
+  if (state.ended) { leave(); setState("ended"); $("#leave").hidden = true; $("#tap").hidden = true; }
+}
+
+async function join() {
+  $("#tap").disabled = true;
+  $("#status").textContent = "connecting…";
+  rtc = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+  rtc.on("user-published", async (user, mediaType) => {
+    // The key trick: play only MY interpreter; the other human's raw voice is never played.
+    if (mediaType !== "audio" || user.uid !== info.play_uid) return;
+    await rtc.subscribe(user, "audio");
+    user.audioTrack.play();
+  });
+  rtc.enableAudioVolumeIndicator();
+  rtc.on("volume-indicator", vols => {
+    const agent = vols.find(v => v.uid === info.play_uid)?.level || 0;
+    const me = vols.find(v => v.uid === info.uid || v.uid === 0)?.level || 0;
+    document.body.style.setProperty("--level", Math.min(1, Math.max(agent, me) / 60).toFixed(2));
+    if (!state.ended) setState(agent > 5 ? "speaking" : me > 5 ? "talking" : "listening");
+  });
+  await rtc.join(info.app_id, info.channel, info.token, info.uid);
+  mic = await AgoraRTC.createMicrophoneAudioTrack({ AEC: true, ANS: true, AGC: true });
+  await rtc.publish([mic]);
+  $("#tap").hidden = true; $("#orb").hidden = false; $("#leave").hidden = false;
+  $("#status").textContent = "";
+  setState("listening");
+  api(`/calls/${ch}/presence`, { role }).catch(e => console.warn(e));
+}
+
+async function leave() {
+  try { mic?.close(); await rtc?.leave(); } catch (e) { console.warn(e); }
+  rtc = null; mic = null;
+}
+
+(async () => {
+  info = await api(`/calls/${encodeURIComponent(ch)}/join?role=${encodeURIComponent(role)}`);
+  const t = ui(info.me.text_lang);
+  document.title = `${lang(info.me.speak_lang).native} · Convox`;
+  $("#me").textContent = lang(info.me.speak_lang).native;
+  $("#me").lang = info.me.speak_lang.slice(0, 2);
+  $("#with").textContent = `⇄ ${lang(info.other.speak_lang).native} · ${role}`;
+  $("#tap-native").textContent = t.start;
+  $("#leave").innerHTML = `${esc(t.leave)}${t.leave !== "End call" ? ` <small>End call</small>` : ""}`;
+  $("#tap").onclick = () => join().catch(e => { $("#status").textContent = `could not join: ${e.message}`; $("#tap").disabled = false; });
+  $("#leave").onclick = async () => { $("#leave").disabled = true; await leave(); await api(`/calls/${ch}/end`, {}); };
+  subscribe(ch, state, render);
+})().catch(e => { document.body.innerHTML = `<p class="phone-ended">Could not open the call: ${esc(e.message)}</p>`; });
+</script>
+</body>
+</html>

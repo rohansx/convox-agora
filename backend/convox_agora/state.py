@@ -30,6 +30,8 @@ class Call:
     log: list[dict] = field(default_factory=list)
     outcome: dict | None = None
     agent_ids: dict[str, str] = field(default_factory=dict)  # listener role -> Agora agent id
+    links: dict[str, str] = field(default_factory=dict)  # role -> phone URL
+    joined: dict[str, bool] = field(default_factory=dict)  # role -> that phone is in the channel
     ended: bool = False
     subs: set[asyncio.Queue] = field(default_factory=set)
     running: bool = False  # a Claude run is in flight
@@ -70,6 +72,8 @@ class Call:
             "log": self.log,
             "outcome": self.outcome,
             "ended": self.ended,
+            "links": self.links,
+            "joined": self.joined,
         }
 
 
