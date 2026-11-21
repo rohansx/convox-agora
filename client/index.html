@@ -21,7 +21,7 @@
     <span id="logo"></span>
     <nav><span class="try-crumb" id="crumb">Rider ⇄ customer · live on Agora</span></nav>
     <div class="nav-end">
-      <a class="nav-link" href="/">New call</a>
+      <a class="nav-link" href="/">Dashboard</a><a class="nav-link" href="/call">New call</a>
       <a class="btn btn-dark btn-sm" href="/platform" target="_blank" rel="noopener">Platform inbox <span class="arr" aria-hidden="true">→</span></a>
     </div>
   </div>
@@ -90,7 +90,7 @@
     <div class="try-oc-actions">
       <button type="button" class="btn btn-ghost" id="oc-close">Back to the call</button>
       <a class="btn btn-ghost" href="/platform" target="_blank" rel="noopener">Open the platform inbox</a>
-      <a class="btn btn-dark" href="/">New call <span class="arr" aria-hidden="true">→</span></a>
+      <a class="btn btn-dark" href="/call">New call <span class="arr" aria-hidden="true">→</span></a>
     </div>
   </div>
 </div>
@@ -233,6 +233,13 @@ async function openCall(ch) {
   $("#crumb").textContent = `Rider ${lang(people.rider.speak_lang).native} ⇄ Customer ${lang(people.customer.speak_lang).native} · live call`;
   drawPhones();
   const state = { lines: [], details: {}, log: [], outcome: null, ended: false, joined: snap.joined || {} };
+  if (snap.ended) {  // a past call: draw it once, nothing is live
+    Object.assign(state, { lines: snap.lines, log: snap.log, outcome: snap.outcome, ended: true,
+      details: Object.fromEntries(snap.details.map(d => [d.id, d])) });
+    render(state, ch);
+    $("#clock").textContent = "";
+    return;
+  }
   subscribe(ch, state, () => render(state, ch));
   const es = new EventSource(`/calls/${encodeURIComponent(ch)}/events`);
   es.addEventListener("presence", e => { const p = JSON.parse(e.data); state.joined[p.role] = true; render(state, ch); });
@@ -253,7 +260,7 @@ $("#start").onclick = async () => {
       rider: { speak_lang: a, text_lang: a, gender: "m" },
       customer: { speak_lang: b, text_lang: b, gender: "f" },
       purpose: $("#purpose").value || null });
-    history.pushState(null, "", `/?ch=${r.channel}`);
+    history.pushState(null, "", `/call?ch=${r.channel}`);
     await openCall(r.channel);
   } catch (e) { $("#pill").textContent = `Could not start: ${e.message}`; $("#start").disabled = false; }
 };

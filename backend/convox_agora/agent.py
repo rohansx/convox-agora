@@ -138,7 +138,7 @@ async def _apply(call: Call, name: str, args: dict, notify: Notify) -> str:
         detail = {**args, "id": did, "status": "said"}
         call.details[did] = detail
         call.publish("detail", detail)
-        call.add_log(f"Detail captured: {args['type']} = {args['value']}", name)
+        call.add_log(f"Detail captured: {args['type']} = {args['value']}", name, args)
         return json.dumps({"detail_id": did})
     if name == "confirm_detail":
         detail = call.details.get(args["detail_id"])
@@ -148,7 +148,7 @@ async def _apply(call: Call, name: str, args: dict, notify: Notify) -> str:
             return f"already {detail['status']}"
         detail.update(status="awaiting", confirm_by=args["listener"])
         call.publish("detail", detail)
-        call.add_log(f"Asked {args['listener']} to confirm {detail['value']}", name)
+        call.add_log(f"Asked {args['listener']} to confirm {detail['value']}", name, args)
         return "asked"
     if name in ("log_call_outcome", "create_followup"):
         kind = "outcome" if name == "log_call_outcome" else "followup"
@@ -157,7 +157,7 @@ async def _apply(call: Call, name: str, args: dict, notify: Notify) -> str:
         label = f"Call {args['status']}, outcome logged" if kind == "outcome" else (
             f"Unresolved ({args['reason']}), follow-up created"
         )
-        call.add_log(label, name)
+        call.add_log(label, name, args)
         await notify(call, call.outcome)
         return "posted"
     return f"error: unknown tool {name}"

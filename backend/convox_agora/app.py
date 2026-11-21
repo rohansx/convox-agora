@@ -41,6 +41,27 @@ WEBHOOK_URL = os.environ.get("PLATFORM_WEBHOOK_URL", f"http://127.0.0.1:{PORT}/p
 FILLERS = {"haan", "haa", "han", "hmm", "hm", "ok", "okay", "achha", "accha", "हाँ", "हां", "हम्म",
            "ಹಾ", "ಹೂಂ", "ಸರಿ", "ಓಕೆ", "ओके", "अच्छा"}  # fmt: skip
 PLATFORM: list[dict] = []  # ponytail: mock platform inbox in memory
+# Ended calls are kept as JSON so the dashboard survives a restart.
+# ponytail: one file per call, read back whole; a database when there are more than a few hundred.
+ARCHIVE = Path(os.environ.get("CONVOX_DATA_DIR", ROOT / "data")) / "calls"
+
+
+def archive(call: Call) -> None:
+    try:
+        ARCHIVE.mkdir(parents=True, exist_ok=True)
+        (ARCHIVE / f"{call.channel}.json").write_text(json.dumps(call.snapshot(), ensure_ascii=False))
+    except OSError as e:
+        log.error("archive.failed %s %r", call.channel, e)
+
+
+def archived() -> list[dict]:
+    out = []
+    for f in ARCHIVE.glob("*.json") if ARCHIVE.exists() else []:
+        try:
+            out.append(json.loads(f.read_text()))
+        except (OSError, ValueError) as e:
+            log.warning("archive.unreadable %s %r", f.name, e)
+    return out
 
 http: httpx.AsyncClient
 mt: SarvamMT
@@ -186,7 +207,12 @@ async def join_info(ch: str, role: str):
 
 @app.get("/calls/{ch}")
 async def call_snapshot(ch: str):
-    return get_call(ch).snapshot()
+    if ch in CALLS:
+        return CALLS[ch].snapshot()
+    f = ARCHIVE / f"{ch}.json"
+    if not ch.isalnum() or not f.exists():  # isalnum: the channel names a file
+        raise HTTPException(404, "unknown call")
+    return json.loads(f.read_text())
 
 
 @app.get("/calls/{ch}/events")
@@ -262,6 +288,7 @@ async def end_call(ch: str):
         log.exception("agent.judge_failed")
         call.add_log("End-of-call judgment failed")
     call.publish("ended", {"outcome": call.outcome})
+    archive(call)
     return call.snapshot()
 
 
@@ -284,6 +311,19 @@ async def platform_page():
 
 
 @app.get("/")
+async def dashboard_page():
+    return FileResponse(ROOT / "client" / "dashboard.html")
+
+
+@app.get("/dashboard/data")
+async def dashboard_data():
+    """Every call, newest first: live ones from memory, ended ones from the archive."""
+    calls = {c["channel"]: c for c in archived()}
+    calls.update({ch: c.snapshot() for ch, c in CALLS.items()})
+    return sorted(calls.values(), key=lambda c: c.get("created_at", 0), reverse=True)
+
+
+@app.get("/call")
 async def host_page():
     return FileResponse(ROOT / "client" / "index.html")
 

@@ -33,6 +33,7 @@ class Call:
     links: dict[str, str] = field(default_factory=dict)  # role -> phone URL
     joined: dict[str, bool] = field(default_factory=dict)  # role -> that phone is in the channel
     ended: bool = False
+    created_at: float = field(default_factory=time.time)
     subs: set[asyncio.Queue] = field(default_factory=set)
     running: bool = False  # a Claude run is in flight
     dirty: bool = False  # new lines arrived during that run
@@ -44,8 +45,8 @@ class Call:
         for q in self.subs:
             q.put_nowait({"kind": kind, "data": data})
 
-    def add_log(self, text: str, tool: str | None = None) -> None:
-        entry = {"t": time.time(), "text": text, "tool": tool}
+    def add_log(self, text: str, tool: str | None = None, args: dict | None = None) -> None:
+        entry = {"t": time.time(), "text": text, "tool": tool, "args": args}
         self.log.append(entry)
         self.publish("log", entry)
 
@@ -65,6 +66,7 @@ class Call:
     def snapshot(self) -> dict:
         return {
             "channel": self.channel,
+            "created_at": self.created_at,
             "people": {r: vars(p) for r, p in self.people.items()},
             "purpose": self.purpose,
             "lines": self.lines,
