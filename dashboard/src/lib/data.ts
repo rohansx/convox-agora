@@ -44,7 +44,7 @@ export function median(xs: number[]): number | null {
 export const secs = (ms: number | null) => (ms == null ? "—" : `${(ms / 1000).toFixed(1)} s`);
 export const hhmm = (t: number) => new Date(t * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 export const hms = (t: number) => new Date(t * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-export const openCall = (ch: string) => { window.location.href = `/call?ch=${encodeURIComponent(ch)}`; };
+export const openCall = (ch: string) => { window.location.href = `/app/calls/${encodeURIComponent(ch)}`; };
 
 /** All calls, newest first, refreshed every 3 s. */
 export function useCalls() {

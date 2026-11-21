@@ -4,11 +4,12 @@ import { AppSidebar, NAV } from "@/components/app-sidebar";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 
 export function Layout() {
   const { pathname } = useLocation();
   const section = NAV.find((n) => (n.to === "/" ? pathname === "/" : pathname.startsWith(n.to)));
+  const callId = pathname.startsWith("/calls/") ? decodeURIComponent(pathname.split("/")[2]) : null;
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -21,8 +22,9 @@ export function Layout() {
               <BreadcrumbItem className="hidden md:block">Partner</BreadcrumbItem>
               <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem>
-                <BreadcrumbPage>{section?.label ?? "Overview"}</BreadcrumbPage>
+                {callId ? <BreadcrumbLink href="/app/calls">Calls</BreadcrumbLink> : <BreadcrumbPage>{section?.label ?? "Overview"}</BreadcrumbPage>}
               </BreadcrumbItem>
+              {callId && (<><BreadcrumbSeparator /><BreadcrumbItem><BreadcrumbPage className="font-mono">{callId}</BreadcrumbPage></BreadcrumbItem></>)}
             </BreadcrumbList>
           </Breadcrumb>
           <div className="ml-auto flex items-center gap-2">
