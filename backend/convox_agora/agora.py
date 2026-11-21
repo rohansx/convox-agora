@@ -101,13 +101,14 @@ def join_body(call: Call, listener: str, hears_from: str, voice_gender: str | No
                 "params": {"api_key": env("SARVAM_API_KEY"), "language": speaker.speak_lang},
             },
             "llm": llm,
-            "tts": {  # VERIFY: murf vendor param names
+            "tts": {  # docs.agora.io/en/ai/models/tts/murf: voiceId is camelCase (voice_id = no audio)
                 "vendor": "murf",
                 "params": {
                     "api_key": env("MURF_API_KEY"),
+                    "voiceId": voice_for(hears.speak_lang, voice_gender),
                     "model": "FALCON",
-                    "voice_id": voice_for(hears.speak_lang, voice_gender),
                     "locale": hears.speak_lang,
+                    "sample_rate": 24000,
                 },
             },
         },

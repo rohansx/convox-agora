@@ -199,6 +199,11 @@ function render(state, ch) {
   for (const l of turns) { const ns = numbers(l.text); if (ns.length && ns.every(n => numbers(l.translation).includes(n))) numsIntact += ns.length; }
 
   const last = turns[turns.length - 1];
+  // spotlight whoever spoke last; before anyone speaks, the phone on this screen (demo) or none
+  const narrow = matchMedia("(max-width: 720px)").matches;
+  const focus = people.ai_role && narrow ? "customer" : last ? last.speaker : (people.ai_role ? "customer" : null);
+  $("#phones").classList.toggle("focus", !!focus && !state.ended);
+  for (const r of ["rider", "customer"]) $(`#ph-${r}`).classList.toggle("active", r === focus);
   const link = $("#link");
   if (last && Date.now() / 1000 - last.t < 2) link.dataset.dir = last.speaker === "rider" ? "ab" : "ba"; else delete link.dataset.dir;
   link.querySelector('[data-role="dir"]').textContent = last ? `${lang(people[last.speaker].speak_lang).english} → ${lang(people[last.speaker === "rider" ? "customer" : "rider"].speak_lang).english}` : "Convox";

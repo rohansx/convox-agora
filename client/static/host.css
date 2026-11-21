@@ -48,3 +48,15 @@
 .oc-next { font-size: 16px; }
 
 @media (max-width: 860px) { .agent-grid { grid-template-columns: 1fr; } }
+
+/* spotlight: the phone of whoever is talking is in focus, the other steps back */
+.try-body { --pw: 340px; }
+.phones .iphone { transition: opacity .35s ease, transform .35s ease, filter .35s ease; }
+.phones.focus .iphone:not(.active) { opacity: .45; transform: scale(.9); filter: saturate(.6); }
+.phones.focus .iphone.active { transform: scale(1.02); }
+@media (max-width: 1100px) { .try-body { --pw: 300px; } }
+@media (max-width: 720px) {  /* one phone at a time on a narrow screen */
+  .try-body { --pw: min(82vw, 330px); }
+  .phones.focus .iphone:not(.active), .phones.focus .link { display: none; }
+  .phones.focus .iphone.active { transform: none; }
+}
