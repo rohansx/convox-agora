@@ -53,7 +53,7 @@ STORIES: dict[str, dict] = {
     },
 }
 
-LANG_NAMES = {"kn-IN": "Kannada", "hi-IN": "Hindi", "mr-IN": "Marathi"}
+LANG_NAMES = {"kn-IN": "Kannada", "hi-IN": "Hindi", "mr-IN": "Marathi", "ml-IN": "Malayalam"}
 
 RULES = """Rules for every reply:
 - Speak ONLY {lang}, in native script, colloquial, like a real phone call. Never use another language's script.

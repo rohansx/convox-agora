@@ -11,6 +11,7 @@ const LANGS = {
   "mr-IN": { native: "मराठी", english: "Marathi" },
   "gu-IN": { native: "ગુજરાતી", english: "Gujarati" },
   "bn-IN": { native: "বাংলা", english: "Bengali" },
+  "ml-IN": { native: "മലയാളം", english: "Malayalam" },
   "en-IN": { native: "English", english: "English" },
 };
 const lang = code => LANGS[code] || { native: code, english: code };
@@ -23,6 +24,8 @@ const UI = {
              yes: "हाँ", no: "नहीं", listening: "सुन रहा है", speaking: "बोल रहा है" },
   "mr-IN": { start: "सुरू करा", leave: "कॉल संपवा", card: "कॉलची माहिती", confirm: "बरोबर आहे?",
              yes: "हो", no: "नाही", listening: "ऐकत आहे", speaking: "बोलत आहे" },
+  "ml-IN": { start: "തുടങ്ങുക", leave: "കോൾ അവസാനിപ്പിക്കുക", card: "കോൾ വിവരങ്ങൾ", confirm: "ശരിയാണോ?",
+             yes: "അതെ", no: "അല്ല", listening: "കേൾക്കുന്നു", speaking: "സംസാരിക്കുന്നു" },
   "en-IN": { start: "Start", leave: "End call", card: "Call details", confirm: "Correct?",
              yes: "Yes", no: "No", listening: "Listening", speaking: "Speaking" },
 };
