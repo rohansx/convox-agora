@@ -66,19 +66,28 @@ $("#logo").innerHTML = LOGO;
       <h2>${esc(s.headline)}</h2>
       <p class="stakes">${esc(s.stakes)}</p>
       <div class="persona">
-        <span><b>${esc(s.name)}</b><span class="ai">AI</span> <span class="try-muted">${esc(s.role)} · speaks only the other language</span></span>
+        <span><b>${esc(s.name)}</b><span class="ai">AI</span> <span class="try-muted">${esc(s.role)} · speaks only his own language</span></span>
         <label>You, the customer, speak
-          <select name="lang"><option value="hi-IN">हिन्दी · Hindi</option><option value="kn-IN">ಕನ್ನಡ · Kannada</option><option value="mr-IN">मराठी · Marathi</option><option value="ml-IN">മലയാളം · Malayalam</option><option value="en-IN">English</option></select></label>
+          <select name="lang"><option value="hi-IN">हिन्दी · Hindi</option><option value="kn-IN">ಕನ್ನಡ · Kannada</option><option value="ta-IN">தமிழ் · Tamil</option><option value="te-IN">తెలుగు · Telugu</option><option value="mr-IN">मराठी · Marathi</option><option value="ml-IN">മലയാളം · Malayalam</option><option value="en-IN">English</option></select></label>
+        <label>${esc(s.name)} speaks
+          <select name="ai_lang"><option value="hi-IN">हिन्दी · Hindi</option><option value="kn-IN" selected>ಕನ್ನಡ · Kannada</option><option value="ta-IN">தமிழ் · Tamil</option><option value="te-IN">తెలుగు · Telugu</option><option value="mr-IN">मराठी · Marathi</option><option value="ml-IN">മലയാളം · Malayalam</option><option value="en-IN">English</option></select></label>
       </div>
       <p class="err" hidden></p>
       <button type="submit" class="btn btn-dark">Call ${esc(s.name)} <span class="arr" aria-hidden="true">→</span></button>
     </form>`).join("");
+  document.querySelectorAll("form.story").forEach(f => {
+    const me = f.elements.lang, ai = f.elements.ai_lang;
+    me.onchange = () => { if (me.value === ai.value) ai.value = me.value === "kn-IN" ? "hi-IN" : "kn-IN"; };
+    ai.onchange = () => { if (me.value === ai.value) me.value = ai.value === "hi-IN" ? "kn-IN" : "hi-IN"; };
+  });
   document.querySelectorAll("form.story").forEach(f => f.onsubmit = async ev => {
     ev.preventDefault();
     const btn = f.querySelector("button"), err = f.querySelector(".err");
     btn.disabled = true; btn.textContent = "Connecting…";
     try {
-      const r = await api("/demo/calls", { story: f.dataset.story, lang: new FormData(f).get("lang") });
+      const fd = new FormData(f);
+      if (fd.get("lang") === fd.get("ai_lang")) throw new Error("pick two different languages");
+      const r = await api("/demo/calls", { story: f.dataset.story, lang: fd.get("lang"), ai_lang: fd.get("ai_lang") });
       location.href = `/call?ch=${encodeURIComponent(r.channel)}`;
     } catch (e) { err.hidden = false; err.textContent = `Could not start: ${e.message}`; btn.disabled = false; }
   });

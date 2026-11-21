@@ -315,9 +315,13 @@ async def presence(ch: str, body: PresenceIn):
     return {"ok": True}
 
 
+DEMO_LANGS = r"^(hi|kn|mr|ml|ta|te|en)-IN$"
+
+
 class DemoIn(BaseModel):
     story: str
-    lang: str = Field(default="hi-IN", pattern=r"^(hi|kn|mr|ml|en)-IN$")
+    lang: str = Field(default="hi-IN", pattern=DEMO_LANGS)
+    ai_lang: str | None = Field(default=None, pattern=DEMO_LANGS)
 
 
 @app.get("/demo/stories")
@@ -332,7 +336,9 @@ async def create_demo_call(body: DemoIn):
     story = persona.STORIES.get(body.story)
     if story is None:
         raise HTTPException(404, "unknown story")
-    ai_lang = "hi-IN" if body.lang == "kn-IN" else "kn-IN"  # any other caller -> Kannada rider
+    ai_lang = body.ai_lang or ("hi-IN" if body.lang == "kn-IN" else "kn-IN")
+    if ai_lang == body.lang:
+        raise HTTPException(400, "pick two different languages")
     ch = f"cvx{secrets.token_hex(4)}"
     people = {"rider": Person("rider", ai_lang, ai_lang, story["gender"]),
               "customer": Person("customer", body.lang, body.lang, None)}
@@ -341,7 +347,10 @@ async def create_demo_call(body: DemoIn):
     CALLS[ch] = call
     call.add_log(f"Context loaded: you {body.lang}, {story['name']} ({story['role']}, AI) {ai_lang}, "
                  f"purpose {story['purpose']}", "get_call_context")
-    said = story["greeting"][ai_lang]
+    said = story["greeting"].get(ai_lang)
+    if said is None:  # no scripted greeting in this language: Mayura writes it from the Kannada one
+        said = await interpret(call, story["greeting"]["kn-IN"], Person("x", "kn-IN", "kn-IN", "m"),
+                               people["rider"]) or story["greeting"]["hi-IN"]
     heard = await interpret(call, said, people["rider"], people["customer"])
     call.add_line("rider", said, heard, 0)
     await agora.start_agents(call, http, greeting=heard)
