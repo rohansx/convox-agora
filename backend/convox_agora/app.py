@@ -107,6 +107,10 @@ async def lifespan(_: FastAPI):
     mt_formal = SarvamMT(os.environ.get("SARVAM_API_KEY", ""), mode="formal")
     claude = AsyncAnthropic()
     PLATFORM[:] = load_inbox()
+    for snap in archived():  # calls still in progress when the server restarted (e.g. a deploy)
+        if not snap.get("ended") and time.time() - snap.get("created_at", 0) < 3600:
+            CALLS[snap["channel"]] = Call.from_snapshot(snap)
+            log.info("call.restored %s", snap["channel"])
     await mt.prewarm()
     yield
     await mt.aclose()
@@ -208,6 +212,7 @@ async def llm(ch: str, speaker: str, request: Request):
             out = await persona_turn(call, dst, src)
         if out:
             agent.kick(call, claude, notify_platform)
+        archive(call)  # in progress too, so a restart mid-call doesn't lose it
     cid = f"chatcmpl-{secrets.token_hex(6)}"
     if not body.get("stream", False):
         return {"id": cid, "object": "chat.completion", "created": int(time.time()),
@@ -248,6 +253,7 @@ async def create_call(body: CallIn):
     call = Call(channel=ch, people=people, purpose=body.purpose,
                 links={r: f"{base}/phone?ch={ch}&role={r}" for r in ROLES})
     CALLS[ch] = call
+    archive(call)
     call.add_log(f"Context loaded: rider {people['rider'].speak_lang}, customer "
                  f"{people['customer'].speak_lang}, purpose {body.purpose or 'unknown'}",
                  "get_call_context")
@@ -345,6 +351,7 @@ async def create_demo_call(body: DemoIn):
     call = Call(channel=ch, people=people, purpose=story["purpose"], ai_role="rider", story=body.story,
                 joined={"rider": True})
     CALLS[ch] = call
+    archive(call)
     call.add_log(f"Context loaded: you {body.lang}, {story['name']} ({story['role']}, AI) {ai_lang}, "
                  f"purpose {story['purpose']}", "get_call_context")
     said = story["greeting"].get(ai_lang)

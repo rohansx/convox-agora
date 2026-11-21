@@ -65,6 +65,15 @@ class Call:
         self.publish("line", line)
         return line
 
+    @classmethod
+    def from_snapshot(cls, d: dict) -> "Call":
+        """A call in progress, restored after a restart (its Agora agents are still running)."""
+        return cls(channel=d["channel"], people={r: Person(**p) for r, p in d["people"].items()},
+                   purpose=d.get("purpose"), lines=d["lines"], log=d["log"], outcome=d.get("outcome"),
+                   details={x["id"]: x for x in d["details"]}, agent_ids=d.get("agent_ids", {}),
+                   links=d.get("links", {}), joined=d.get("joined", {}), ended=d.get("ended", False),
+                   ai_role=d.get("ai_role"), story=d.get("story"), created_at=d.get("created_at", time.time()))
+
     def snapshot(self) -> dict:
         return {
             "channel": self.channel,
@@ -80,6 +89,7 @@ class Call:
             "ai_role": self.ai_role,
             "story": self.story,
             "joined": self.joined,
+            "agent_ids": self.agent_ids,
         }
 
 

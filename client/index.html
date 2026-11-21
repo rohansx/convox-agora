@@ -201,7 +201,9 @@ function render(state, ch) {
   const last = turns[turns.length - 1];
   // spotlight whoever spoke last; before anyone speaks, the phone on this screen (demo) or none
   const narrow = matchMedia("(max-width: 720px)").matches;
-  const focus = people.ai_role && narrow ? "customer" : last ? last.speaker : (people.ai_role ? "customer" : null);
+  // spotlight the phone that is receiving the interpretation: whoever did NOT say the last line
+  const listener = last ? (last.speaker === "rider" ? "customer" : "rider") : null;
+  const focus = people.ai_role && narrow ? "customer" : listener ?? (people.ai_role ? "customer" : null);
   $("#phones").classList.toggle("focus", !!focus && !state.ended);
   for (const r of ["rider", "customer"]) $(`#ph-${r}`).classList.toggle("active", r === focus);
   const link = $("#link");
@@ -328,8 +330,12 @@ async function pump() {
     while (!quiet()) await new Promise(r => setTimeout(r, 100));
     current = it;
     $("#ph-rider")?.classList.add("hearing");
+    // the browser's echo cancellation does not cover this <audio>: mute my mic so the speaker
+    // doesn't leak into it (it kept Agora's turn detection "in speech" for a minute)
+    await mic?.setMuted(true);
     try { await it.audio.play(); await new Promise(r => { it.audio.onended = r; it.audio.onerror = r; it.audio.onpause = r; }); }
     catch (e) { console.warn("both: could not play", e); }
+    await mic?.setMuted(false);
     current = null;
     $("#ph-rider")?.classList.remove("hearing");
   }
