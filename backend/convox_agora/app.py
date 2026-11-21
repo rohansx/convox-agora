@@ -63,20 +63,35 @@ def archived() -> list[dict]:
             log.warning("archive.unreadable %s %r", f.name, e)
     return out
 
+# Unicode block of each listener language's script. Mayura's code-mixed mode sometimes returns a
+# short line entirely in English (e.g. "Yes, absolutely correct" for a Kannada listener).
+SCRIPTS = {"kn": (0x0C80, 0x0CFF), "hi": (0x0900, 0x097F), "mr": (0x0900, 0x097F),
+           "ta": (0x0B80, 0x0BFF), "te": (0x0C00, 0x0C7F), "gu": (0x0A80, 0x0AFF),
+           "bn": (0x0980, 0x09FF), "ml": (0x0D00, 0x0D7F)}
+
+
+def in_script(text: str, lang: str) -> bool:
+    lo_hi = SCRIPTS.get(lang[:2])
+    return lo_hi is None or any(lo_hi[0] <= ord(c) <= lo_hi[1] for c in text)
+
+
 http: httpx.AsyncClient
 mt: SarvamMT
+mt_formal: SarvamMT  # fallback when the colloquial output has none of the listener's script
 claude: AsyncAnthropic
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    global http, mt, claude
+    global http, mt, mt_formal, claude
     http = httpx.AsyncClient(timeout=10)
     mt = SarvamMT(os.environ.get("SARVAM_API_KEY", ""))
+    mt_formal = SarvamMT(os.environ.get("SARVAM_API_KEY", ""), mode="formal")
     claude = AsyncAnthropic()
     await mt.prewarm()
     yield
     await mt.aclose()
+    await mt_formal.aclose()
     await http.aclose()
 
 
@@ -139,6 +154,9 @@ async def llm(ch: str, speaker: str, request: Request):
         t0 = time.monotonic()
         try:
             out = await mt.translate(text, src.speak_lang, dst.speak_lang, src.gender)
+            if out and not in_script(out, dst.speak_lang):
+                log.info("mt.retry_formal %r", out)
+                out = await mt_formal.translate(text, src.speak_lang, dst.speak_lang, src.gender)
             out, _ = readback(text, out, dst.speak_lang)
         except ProviderError as e:
             log.error("mt.failed %s", e)
