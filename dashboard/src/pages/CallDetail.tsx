@@ -74,18 +74,6 @@ function Outcome({ c }: { c: Call }) {
       </CardHeader>
       <CardContent className="grid gap-4">
         <p className="text-base">{o.summary}</p>
-        {(o.summary_rider || o.summary_customer) && (
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="bg-muted/60 rounded-lg p-3">
-              <div className="eyebrow mb-1">Rider · {lang(c.people.rider.text_lang)}</div>
-              <p>{o.summary_rider}</p>
-            </div>
-            <div className="bg-muted/60 rounded-lg p-3">
-              <div className="eyebrow mb-1">Customer · {lang(c.people.customer.text_lang)}</div>
-              <p>{o.summary_customer}</p>
-            </div>
-          </div>
-        )}
         {o.agreed_details && o.agreed_details.length > 0 && (
           <div>
             <div className="eyebrow mb-2">Agreed</div>

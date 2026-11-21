@@ -232,14 +232,12 @@ function showOutcome(o) {
   $("#oc-title").textContent = follow ? "They didn't reach an agreement" : o.status === "resolved" ? "What they agreed" : "Not enough to judge";
   $("#oc-status").className = `oc-status ${follow ? "follow" : o.status === "resolved" ? "ok" : "unclear"}`;
   $("#oc-status").textContent = follow ? `create_followup · ${o.reason}` : `log_call_outcome · ${o.status} · ${o.purpose}`;
-  const sides = follow
-    ? [["rider", o.summary_rider], ["customer", o.summary_customer]]
-    : [["rider", o.summary_rider || o.summary], ["customer", o.summary_customer || o.summary]];
-  $("#oc-cols").innerHTML = sides.map(([r, text]) => `<div class="try-oc-side" data-side="${SIDE[r]}">
-    <p class="try-muted">${NAME[r]} · <span lang="${people[r].speak_lang.slice(0, 2)}">${lang(people[r].speak_lang).native}</span></p>
-    <h3>${esc(text)}</h3></div>`).join("");
-  $("#oc-next").innerHTML = follow ? `<strong>Suggested next step:</strong> ${esc(o.next_step)}`
-    : (o.agreed_details || []).length ? `<strong>Agreed:</strong> ${o.agreed_details.map(esc).join(" · ")}` : esc(o.summary);
+  // the judgment is for the platform: one English record, not translated for the two people
+  const agreed = o.agreed_details || [];
+  $("#oc-cols").innerHTML = `<div class="try-oc-side" data-side="a" style="grid-column:1/-1">
+    <p class="try-muted">Summary</p><h3>${esc(o.summary)}</h3>
+    ${agreed.length ? `<ul>${agreed.map(d => `<li>✓ ${esc(d)}</li>`).join("")}</ul>` : ""}</div>`;
+  $("#oc-next").innerHTML = follow ? `<strong>Reason:</strong> ${esc(o.reason)}<br><strong>Suggested next step:</strong> ${esc(o.next_step)}` : "";
   $("#outcome").hidden = false;
 }
 $("#oc-close").onclick = () => { $("#outcome").hidden = true; };

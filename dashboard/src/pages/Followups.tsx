@@ -1,7 +1,7 @@
 import { Empty, ErrorState, Loading } from "@/components/states";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { hhmm, lang, openCall, pair, useCalls } from "@/lib/data";
+import { hhmm, openCall, pair, useCalls } from "@/lib/data";
 
 export function FollowupsPage() {
   const { calls, error } = useCalls();
@@ -24,10 +24,6 @@ export function FollowupsPage() {
             </CardHeader>
             <CardContent className="grid gap-3 text-sm">
               <p>{o.summary}</p>
-              <div className="bg-muted/60 grid gap-2 rounded-lg p-3">
-                <p><span className="eyebrow mr-2">Rider · {lang(c.people.rider.text_lang)}</span>{o.summary_rider}</p>
-                <p><span className="eyebrow mr-2">Customer · {lang(c.people.customer.text_lang)}</span>{o.summary_customer}</p>
-              </div>
               <p><span className="font-medium">Next step: </span>{o.next_step}</p>
             </CardContent>
           </Card>

@@ -42,8 +42,6 @@ function card(r) {
     <div><strong>${esc(r.purpose)}</strong>${r.reason ? ` · ${esc(r.reason)}` : ""}</div>
     <div>${esc(r.summary)}</div>
     ${r.agreed_details?.length ? `<ul>${r.agreed_details.map(d => `<li>${esc(d)}</li>`).join("")}</ul>` : ""}
-    ${r.summary_rider ? `<div class="bi">Rider: ${esc(r.summary_rider)}</div>` : ""}
-    ${r.summary_customer ? `<div class="bi">Customer: ${esc(r.summary_customer)}</div>` : ""}
     ${r.next_step ? `<div style="margin-top:8px"><strong>Next step:</strong> ${esc(r.next_step)}</div>` : ""}
   </div>`;
 }

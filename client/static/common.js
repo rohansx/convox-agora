@@ -58,7 +58,7 @@ function detailHTML(d, role, textLang) {
 function outcomeHTML(o, role) {
   if (!o) return "";
   if (o.kind === "followup") {
-    const local = role === "rider" ? o.summary_rider : role === "customer" ? o.summary_customer : null;
+    const local = null;  // the judgment is English, for the platform
     return `<div class="outcome follow"><b>Not resolved · follow-up raised</b>${esc(o.reason)}
       <p>${esc(local || o.summary)}</p><p><strong>Next step:</strong> ${esc(o.next_step)}</p></div>`;
   }

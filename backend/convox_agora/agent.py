@@ -85,11 +85,9 @@ LOG_OUTCOME = {
             "purpose": {"type": "string", "description": "e.g. find pickup, address, OTP, reschedule, payment"},
             "status": {"type": "string", "enum": ["resolved", "unclear"]},
             "summary": {"type": "string", "description": "One line, English"},
-            "summary_rider": {"type": "string", "description": "Same, rider's text language"},
-            "summary_customer": {"type": "string", "description": "Same, customer's text language"},
             "agreed_details": {"type": "array", "items": {"type": "string"}},
         },
-        "required": ["purpose", "status", "summary", "summary_rider", "summary_customer"],
+        "required": ["purpose", "status", "summary"],
     },
 }
 FOLLOWUP = {
@@ -102,11 +100,9 @@ FOLLOWUP = {
             "purpose": {"type": "string"},
             "reason": {"type": "string", "description": "e.g. customer unavailable, confusion, dispute"},
             "summary": {"type": "string", "description": "Two sentences, English"},
-            "summary_rider": {"type": "string", "description": "Same, rider's text language"},
-            "summary_customer": {"type": "string", "description": "Same, customer's text language"},
             "next_step": {"type": "string", "description": "Suggested action for the platform"},
         },
-        "required": ["purpose", "reason", "summary", "summary_rider", "summary_customer", "next_step"],
+        "required": ["purpose", "reason", "summary", "next_step"],
     },
 }
 
