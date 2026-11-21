@@ -317,7 +317,7 @@ async def presence(ch: str, body: PresenceIn):
 
 class DemoIn(BaseModel):
     story: str
-    lang: str = Field(default="hi-IN", pattern=r"^(hi|kn|mr|ml)-IN$")
+    lang: str = Field(default="hi-IN", pattern=r"^(hi|kn|mr|ml|en)-IN$")
 
 
 @app.get("/demo/stories")

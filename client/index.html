@@ -108,7 +108,7 @@
 const MARK = (cls) => `<svg class="mark ${cls}" viewBox="0 0 32 32" aria-hidden="true"><rect x="3.2" y="11" width="2.8" height="10" rx="1.4" fill="currentColor"/><rect x="7.6" y="7" width="2.8" height="18" rx="1.4" fill="currentColor"/><rect x="12" y="3" width="2.8" height="26" rx="1.4" fill="currentColor"/><rect x="16.4" y="3" width="2.8" height="26" rx="1.4" fill="#ff5b14"/><rect x="20.8" y="7" width="2.8" height="18" rx="1.4" fill="#ff5b14"/><rect x="25.2" y="11" width="2.8" height="10" rx="1.4" fill="#ff5b14"/></svg>`;
 $("#logo").innerHTML = LOGO;
 
-const PAIRS = [["kn-IN", "hi-IN"], ["hi-IN", "kn-IN"], ["kn-IN", "ta-IN"], ["hi-IN", "ta-IN"], ["kn-IN", "te-IN"], ["hi-IN", "te-IN"], ["kn-IN", "mr-IN"], ["kn-IN", "ml-IN"]];
+const PAIRS = [["kn-IN", "hi-IN"], ["hi-IN", "kn-IN"], ["kn-IN", "ta-IN"], ["hi-IN", "ta-IN"], ["kn-IN", "te-IN"], ["hi-IN", "te-IN"], ["kn-IN", "mr-IN"], ["kn-IN", "ml-IN"], ["kn-IN", "en-IN"]];
 const PURPOSES = ["find pickup", "parcel delivery", "share OTP", "address", ""];
 $("#pair").innerHTML = PAIRS.map(([a, b]) => `<option value="${a}|${b}">Rider ${lang(a).native} ⇄ Customer ${lang(b).native}</option>`).join("");
 $("#purpose").innerHTML = PURPOSES.map(p => `<option value="${p}">${p ? `Purpose: ${p}` : "Purpose: unknown"}</option>`).join("");

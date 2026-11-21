@@ -53,6 +53,7 @@ VOICES = {
     ("te-IN", "m"): "en-IN-samar", ("te-IN", "f"): "en-IN-anisha",
     ("mr-IN", "m"): "mr-IN-prathamesh", ("mr-IN", "f"): "hi-IN-rachna",
     ("ml-IN", "m"): "ml-IN-madhavan", ("ml-IN", "f"): "hi-IN-poonam",
+    ("en-IN", "m"): "en-IN-aarav", ("en-IN", "f"): "en-IN-isha",
 }
 
 
