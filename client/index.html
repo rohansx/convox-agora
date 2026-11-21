@@ -376,7 +376,12 @@ $("#start").onclick = async () => {
 
 drawPhones();
 const ch = new URLSearchParams(location.search).get("ch");
-if (ch) openCall(ch).catch(e => { $("#pill").textContent = e.message; });
+if (ch) openCall(ch).catch(e => {
+  // a call that no longer exists (e.g. the server restarted mid-call): back to the picker
+  history.replaceState(null, "", "/call");
+  $("#pill").textContent = String(e.message).startsWith("404")
+    ? "That call has ended (the server restarted). Start a new one." : `Could not open the call: ${e.message}`;
+});
 addEventListener("popstate", () => location.reload());
 </script>
 </body>
