@@ -20,7 +20,7 @@ import httpx
 from anthropic import AsyncAnthropic
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -327,6 +327,34 @@ async def create_demo_call(body: DemoIn):
     call.add_line("rider", said, heard, 0)
     await agora.start_agents(call, http, greeting=heard)
     return {"channel": ch, "agents": call.agent_ids}
+
+
+MURF_STREAM = "https://api.murf.ai/v1/speech/stream"
+
+
+@app.get("/calls/{ch}/audio/{n}")
+async def line_audio(ch: str, n: int, part: str = "text"):
+    """A line as one phone hears it, spoken by Murf Falcon: part=text is what the speaker said (their
+    language), part=translation is what the listener heard. For /demo's "hearing both phones"."""
+    call = get_call(ch)
+    if not 1 <= n <= len(call.lines) or part not in ("text", "translation"):
+        raise HTTPException(404, "no such line")
+    line = call.lines[n - 1]
+    if line["speaker"] not in ROLES or not line[part]:
+        raise HTTPException(404, "nothing to say")
+    speaker = call.people[line["speaker"]]
+    lang = speaker.speak_lang if part == "text" else call.other(speaker.role).speak_lang
+    body = {"voiceId": agora.voice_for(lang, speaker.gender), "text": line[part], "model": "FALCON",
+            "multiNativeLocale": lang, "format": "MP3"}
+    try:
+        r = await http.post(MURF_STREAM, json=body, headers={"api-key": os.environ.get("MURF_API_KEY", "")},
+                            timeout=15)
+    except httpx.HTTPError as e:
+        raise HTTPException(502, f"murf: {type(e).__name__}") from e
+    if r.status_code >= 400:
+        log.error("murf.failed %s %s", r.status_code, r.text[:200])
+        raise HTTPException(502, f"murf: HTTP {r.status_code}")
+    return Response(r.content, media_type="audio/mpeg", headers={"cache-control": "max-age=3600"})
 
 
 class ConfirmIn(BaseModel):

@@ -55,6 +55,10 @@
         <button type="button" class="btn btn-white" id="talk" hidden style="height:46px;padding:0 22px">
           <svg viewBox="0 0 24 24" aria-hidden="true" style="width:18px;height:18px"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-2.1A7 7 0 0 0 19 12h-2Z"/></svg>
           Start the call</button>
+        <button type="button" class="sound" id="both" aria-pressed="true" hidden title="Also hear what the other phone hears and says">
+          <svg class="ico-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 4V5L7 9H3Zm13.6 3 2.7-2.7-1.4-1.4-2.7 2.7-2.7-2.7-1.4 1.4 2.7 2.7-2.7 2.7 1.4 1.4 2.7-2.7 2.7 2.7 1.4-1.4-2.7-2.7Z"/></svg>
+          <svg class="ico-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 4V5L7 9H3Zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4ZM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6Z"/></svg>
+          <span class="sound-label">Hearing both phones</span></button>
         <button type="button" class="btn btn-white btn-sm" id="leave" hidden>End call</button>
       </div>
     </div>
@@ -265,10 +269,57 @@ async function openCall(ch) {
   }, 500);
   $("#leave").onclick = async () => { $("#leave").disabled = true; await leaveRtc(); await api(`/calls/${ch}/end`, {}); };
   if (snap.ai_role) {
+    $("#both").hidden = false;
+    $("#both").onclick = () => setBoth(!both);
+    es.addEventListener("line", e => onLineBoth(ch, JSON.parse(e.data)));
     $("#talk").hidden = false;
     $("#talk").onclick = () => joinRtc(ch).catch(e => { $("#pill").textContent = `Could not join: ${e.message}`; $("#talk").disabled = false; });
   }
 }
+
+// "Hearing both phones" (as on convox.ai/try): also hear the AI's phone. What it hears (your line
+// in its language) plays while it thinks; what it says waits until your interpreter has finished,
+// so two voices never overlap. Murf speaks both, via /calls/{ch}/audio/{n}.
+let both = true, agentTrack = null, agentLoudAt = 0;
+const queue = [];
+let playing = false;
+function setBoth(v) {
+  both = v;
+  $("#both").setAttribute("aria-pressed", String(v));
+  $("#both").querySelector(".sound-label").textContent = v ? "Hearing both phones" : "Hearing only your phone";
+  if (!v) queue.length = 0;
+}
+function onLineBoth(ch, l) {
+  if (!both || !rtc || l.speaker === "system") return;
+  const ai = people.ai_role;
+  const item = l.speaker === ai
+    ? { n: l.n, part: "text", afterAgent: true }          // what the AI says, in its language
+    : l.translation ? { n: l.n, part: "translation" } : null; // what the AI hears
+  if (!item) return;
+  item.audio = new Audio(`/calls/${encodeURIComponent(ch)}/audio/${item.n}?part=${item.part}`);
+  item.audio.preload = "auto";
+  item.at = Date.now();
+  queue.push(item);
+  pump();
+}
+async function pump() {
+  if (playing) return;
+  playing = true;
+  while (queue.length && both) {
+    const it = queue[0];
+    if (it.afterAgent) {  // wait for my interpreter to start and finish (or give up after 8 s)
+      const started = () => agentLoudAt > it.at;
+      while (Date.now() - it.at < 8000 && (!started() || Date.now() - agentLoudAt < 700)) await new Promise(r => setTimeout(r, 100));
+    }
+    queue.shift();
+    $("#ph-rider")?.classList.add("hearing");
+    try { await it.audio.play(); await new Promise(r => { it.audio.onended = r; it.audio.onerror = r; }); }
+    catch (e) { console.warn("both: could not play", e); }
+    $("#ph-rider")?.classList.remove("hearing");
+  }
+  playing = false;
+}
+setInterval(() => { if (agentTrack && agentTrack.getVolumeLevel() > 0.05) agentLoudAt = Date.now(); }, 100);
 
 // /demo: this page is the customer's phone. Play only my interpreter, publish my mic.
 let rtc = null, mic = null;
@@ -280,6 +331,7 @@ async function joinRtc(ch) {
     if (mediaType !== "audio" || user.uid !== info.play_uid) return;
     await rtc.subscribe(user, "audio");
     user.audioTrack.play();
+    agentTrack = user.audioTrack;
   });
   rtc.enableAudioVolumeIndicator();
   rtc.on("volume-indicator", vols => {
