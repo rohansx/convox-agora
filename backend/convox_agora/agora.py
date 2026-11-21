@@ -61,6 +61,14 @@ def voice_for(lang: str, gender: str | None) -> str:
     return VOICES.get((lang, gender or "f")) or VOICES.get((lang, "f")) or "hi-IN-khyati"
 
 
+def asr_config(lang: str) -> dict:
+    """Speech recognition inside Agora. ASR_VENDOR=sarvam (default) or ares (Agora's own)."""
+    if (env("ASR_VENDOR") or "sarvam") == "ares":
+        return {"vendor": "ares", "language": lang}
+    return {"vendor": "sarvam", "language": lang,
+            "params": {"api_key": env("SARVAM_API_KEY"), "language": lang}}
+
+
 def join_body(call: Call, listener: str, hears_from: str, voice_gender: str | None,
               greeting: str | None = None) -> dict:
     """One agent: listens to `hears_from` (ASR in their language), our /llm endpoint produces the
@@ -95,11 +103,7 @@ def join_body(call: Call, listener: str, hears_from: str, voice_gender: str | No
                 "prefix_padding_ms": 300,
                 "interrupt_duration_ms": 300,
             },
-            "asr": {  # VERIFY: sarvam vendor param names
-                "vendor": "sarvam",
-                "language": speaker.speak_lang,
-                "params": {"api_key": env("SARVAM_API_KEY"), "language": speaker.speak_lang},
-            },
+            "asr": asr_config(speaker.speak_lang),
             "llm": llm,
             "tts": {  # docs.agora.io/en/ai/models/tts/murf: voiceId is camelCase (voice_id = no audio)
                 "vendor": "murf",
