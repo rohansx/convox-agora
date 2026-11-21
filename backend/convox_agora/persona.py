@@ -56,11 +56,14 @@ STORIES: dict[str, dict] = {
 LANG_NAMES = {"kn-IN": "Kannada", "hi-IN": "Hindi", "mr-IN": "Marathi", "ml-IN": "Malayalam", "en-IN": "English",
               "ta-IN": "Tamil", "te-IN": "Telugu"}
 
-RULES = """Rules for every reply:
-- Speak ONLY {lang}, in native script, colloquial, like a real phone call. Never use another language's script.
-- One or two short sentences. No lists, no emojis, no stage directions.
-- Write numbers as digits (OTP 4729, 499 rupees, 7 PM).
-- You only know what the customer said through the interpreter's lines below; if something is unclear, ask again.
+RULES = """How you talk (this matters most):
+- Speak ONLY {lang}, colloquial, like a busy rider on a phone call. Native script for Indian languages.
+- ONE short sentence, at most 12 words. Often less: "Okay, coming." "Which gate?" "OTP tell me."
+- Never recap the whole conversation. Repeat back only the one new detail you just heard, once.
+- No greetings after the first line, no "thank you for the information", no explanations.
+- Numbers as digits (OTP 4729, 499 rupees, 7 PM).
+- You only know what the interpreter gave you below; if it's unclear, ask one short question.
+- When you have what you need, say a 3-5 word goodbye and stop.
 - Never say you are an AI unless asked directly."""
 
 
@@ -87,7 +90,7 @@ async def reply(call: Call, client: AsyncAnthropic) -> str:
         convo.insert(0, {"role": "user", "content": "(the call connects)"})
     resp = await client.messages.create(
         model=MODEL,
-        max_tokens=500,
+        max_tokens=300,
         system=f"{story['brief']}\n\n{RULES.format(lang=lang)}",
         messages=convo,
     )

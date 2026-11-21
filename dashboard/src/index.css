@@ -1,0 +1,173 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* Same design system as the landing site (convox-site/src/index.css): warm paper, hairline
+   borders, no shadows, ink buttons, amber accent, Geist + Geist Mono. Values are copied from
+   there verbatim so the two read as one product. */
+:root {
+  --radius: 0.5rem; /* buttons/inputs 8px, cards (radius+4) 12px, like .sku-button / .sku-panel */
+  --background: #fbfaf8;
+  --foreground: #17150f;
+  --card: #ffffff;
+  --card-foreground: #17150f;
+  --popover: #ffffff;
+  --popover-foreground: #17150f;
+  --primary: #17150f; /* .sku-button: solid ink */
+  --primary-foreground: #fbfaf8;
+  --secondary: #f5f3ef; /* .sku-inset */
+  --secondary-foreground: #17150f;
+  --muted: #f5f3ef;
+  --muted-foreground: #6a665c;
+  --accent: #f5f3ef;
+  --accent-foreground: #17150f;
+  --destructive: #b91c1c;
+  --border: #e7e3db;
+  --input: #d8d3c8;
+  --ring: #b45309;
+  --amber: #b45309;
+  --amber-glow: rgba(180, 83, 9, 0.12);
+  --dim: #9c968a;
+  --chart-1: #b45309;
+  --chart-2: #1d4ed8;
+  --chart-3: #15803d;
+  --chart-4: #d97706;
+  --chart-5: #9c968a;
+  --sidebar: #fbfaf8;
+  --sidebar-foreground: #17150f;
+  --sidebar-primary: #17150f;
+  --sidebar-primary-foreground: #fbfaf8;
+  --sidebar-accent: #f5f3ef;
+  --sidebar-accent-foreground: #17150f;
+  --sidebar-border: #e7e3db;
+  --sidebar-ring: #b45309;
+}
+
+/* The site's only dark surface is the terminal block; its palette is reused here. */
+.dark {
+  --background: #17150f;
+  --foreground: #e9e5dc;
+  --card: #1e1b15;
+  --card-foreground: #e9e5dc;
+  --popover: #1e1b15;
+  --popover-foreground: #e9e5dc;
+  --primary: #e9e5dc;
+  --primary-foreground: #17150f;
+  --secondary: #2a2620;
+  --secondary-foreground: #e9e5dc;
+  --muted: #2a2620;
+  --muted-foreground: #8b8578;
+  --accent: #2a2620;
+  --accent-foreground: #e9e5dc;
+  --destructive: #ef4444;
+  --border: rgba(255, 255, 255, 0.08);
+  --input: rgba(255, 255, 255, 0.14);
+  --ring: #d97706;
+  --amber: #d97706;
+  --amber-glow: rgba(217, 119, 6, 0.18);
+  --dim: #8b8578;
+  --chart-1: #d97706;
+  --chart-2: #60a5fa;
+  --chart-3: #4ade80;
+  --chart-4: #fbbf24;
+  --chart-5: #8b8578;
+  --sidebar: #17150f;
+  --sidebar-foreground: #e9e5dc;
+  --sidebar-primary: #e9e5dc;
+  --sidebar-primary-foreground: #17150f;
+  --sidebar-accent: #2a2620;
+  --sidebar-accent-foreground: #e9e5dc;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: #d97706;
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-amber: var(--amber);
+  --color-amber-glow: var(--amber-glow);
+  --color-dim: var(--dim);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --font-sans: Geist, Inter, "Noto Sans", "Noto Sans Devanagari", "Noto Sans Kannada", system-ui, sans-serif;
+  --font-mono: "Geist Mono", "JetBrains Mono", ui-monospace, monospace;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  /* Hairline cards, no shadow (.sku-panel) */
+  [data-slot="card"],
+  [data-slot="popover-content"],
+  [data-slot="select-content"],
+  [data-slot="dropdown-menu-content"] {
+    box-shadow: none;
+  }
+  h1, h2, h3 {
+    letter-spacing: -0.02em;
+  }
+}
+
+@layer components {
+  /* Eyebrow label: 10px mono uppercase tracked, as on every landing panel header */
+  .eyebrow {
+    @apply text-dim font-mono text-[10px] tracking-[0.16em] uppercase;
+  }
+  /* Small amber mono pill next to the wordmark (the site's "Apache-2.0" tag) */
+  .tag {
+    @apply text-amber bg-amber-glow rounded px-1.5 py-0.5 font-mono text-[10px];
+  }
+  .led {
+    @apply bg-dim inline-block size-[7px] shrink-0 rounded-full;
+  }
+  .led-green { background: #15803d; }
+  .led-amber { background: var(--amber); }
+  .led-red { background: #b91c1c; }
+}
+
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--background); }
+::-webkit-scrollbar-thumb { background: var(--input); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--dim); }
+
+::selection {
+  background: rgba(180, 83, 9, 0.18);
+}

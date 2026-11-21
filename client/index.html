@@ -55,10 +55,10 @@
         <button type="button" class="btn btn-white" id="talk" hidden style="height:46px;padding:0 22px">
           <svg viewBox="0 0 24 24" aria-hidden="true" style="width:18px;height:18px"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-2.1A7 7 0 0 0 19 12h-2Z"/></svg>
           Start the call</button>
-        <button type="button" class="sound" id="both" aria-pressed="true" hidden title="Also hear what the other phone hears and says">
+        <button type="button" class="sound" id="both" aria-pressed="false" hidden title="Also hear what the other phone hears and says">
           <svg class="ico-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 4V5L7 9H3Zm13.6 3 2.7-2.7-1.4-1.4-2.7 2.7-2.7-2.7-1.4 1.4 2.7 2.7-2.7 2.7 1.4 1.4 2.7-2.7 2.7 2.7 1.4-1.4-2.7-2.7Z"/></svg>
           <svg class="ico-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 4V5L7 9H3Zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4ZM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6Z"/></svg>
-          <span class="sound-label">Hearing both phones</span></button>
+          <span class="sound-label">Hearing only your phone</span></button>
         <button type="button" class="btn btn-white btn-sm" id="leave" hidden>End call</button>
       </div>
     </div>
@@ -280,7 +280,7 @@ async function openCall(ch) {
 // "Hearing both phones" (as on convox.ai/try): also hear the AI's phone. What it hears (your line
 // in its language) plays while it thinks; what it says waits until your interpreter has finished,
 // so two voices never overlap. Murf speaks both, via /calls/{ch}/audio/{n}.
-let both = true, agentTrack = null, agentLoudAt = 0;
+let both = false, agentTrack = null, agentLoudAt = 0, current = null;
 const queue = [];
 let playing = false;
 function setBoth(v) {
@@ -305,21 +305,31 @@ function onLineBoth(ch, l) {
 async function pump() {
   if (playing) return;
   playing = true;
+  const quiet = () => Date.now() - agentLoudAt > 700;  // my interpreter has the floor otherwise
   while (queue.length && both) {
     const it = queue[0];
     if (it.afterAgent) {  // wait for my interpreter to start and finish (or give up after 8 s)
-      const started = () => agentLoudAt > it.at;
-      while (Date.now() - it.at < 8000 && (!started() || Date.now() - agentLoudAt < 700)) await new Promise(r => setTimeout(r, 100));
+      while (Date.now() - it.at < 8000 && (agentLoudAt < it.at || !quiet())) await new Promise(r => setTimeout(r, 100));
+    } else {  // "what the AI hears" only fills silence; stale after 6 s
+      while (!quiet() && Date.now() - it.at < 6000) await new Promise(r => setTimeout(r, 100));
     }
     queue.shift();
+    if (!it.afterAgent && Date.now() - it.at >= 6000) continue;
+    while (!quiet()) await new Promise(r => setTimeout(r, 100));
+    current = it;
     $("#ph-rider")?.classList.add("hearing");
-    try { await it.audio.play(); await new Promise(r => { it.audio.onended = r; it.audio.onerror = r; }); }
+    try { await it.audio.play(); await new Promise(r => { it.audio.onended = r; it.audio.onerror = r; it.audio.onpause = r; }); }
     catch (e) { console.warn("both: could not play", e); }
+    current = null;
     $("#ph-rider")?.classList.remove("hearing");
   }
   playing = false;
 }
-setInterval(() => { if (agentTrack && agentTrack.getVolumeLevel() > 0.05) agentLoudAt = Date.now(); }, 100);
+setInterval(() => {
+  if (!agentTrack || agentTrack.getVolumeLevel() <= 0.05) return;
+  agentLoudAt = Date.now();
+  if (current && !current.afterAgent) current.audio.pause();  // never talk over my interpreter
+}, 100);
 
 // /demo: this page is the customer's phone. Play only my interpreter, publish my mic.
 let rtc = null, mic = null;

@@ -20,7 +20,7 @@ import httpx
 from anthropic import AsyncAnthropic
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -449,9 +449,20 @@ async def platform_page():
     return FileResponse(ROOT / "mock-platform" / "index.html")
 
 
+SPA = (ROOT / "client" / "app").resolve()  # the partner dashboard (dashboard/, React + shadcn)
+
+
 @app.get("/")
-async def dashboard_page():
-    return FileResponse(ROOT / "client" / "dashboard.html")
+async def root():
+    return RedirectResponse("/app/")
+
+
+@app.get("/app/{path:path}")
+async def dashboard_spa(path: str):
+    f = (SPA / path).resolve()
+    if path and f.is_file() and f.is_relative_to(SPA):
+        return FileResponse(f)
+    return FileResponse(SPA / "index.html")  # client-side routes: /app/calls, /app/followups, ...
 
 
 @app.get("/dashboard/data")
