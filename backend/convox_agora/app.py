@@ -40,7 +40,7 @@ WEBHOOK_URL = os.environ.get("PLATFORM_WEBHOOK_URL", f"http://127.0.0.1:{PORT}/p
 # Turns that are only a filler: the interpreter stays silent instead of speaking "yes" back.
 FILLERS = {"haan", "haa", "han", "hmm", "hm", "ok", "okay", "achha", "accha", "हाँ", "हां", "हम्म",
            "ಹಾ", "ಹೂಂ", "ಸರಿ", "ಓಕೆ", "ओके", "अच्छा"}  # fmt: skip
-PLATFORM: list[dict] = []  # ponytail: mock platform inbox in memory
+PLATFORM: list[dict] = []  # mock platform inbox, newest first; persisted next to the call archive
 # Ended calls are kept as JSON so the dashboard survives a restart.
 # ponytail: one file per call, read back whole; a database when there are more than a few hundred.
 ARCHIVE = Path(os.environ.get("CONVOX_DATA_DIR", ROOT / "data")) / "calls"
@@ -52,6 +52,24 @@ def archive(call: Call) -> None:
         (ARCHIVE / f"{call.channel}.json").write_text(json.dumps(call.snapshot(), ensure_ascii=False))
     except OSError as e:
         log.error("archive.failed %s %r", call.channel, e)
+
+
+def inbox_file() -> Path:
+    return ARCHIVE.parent / "platform.jsonl"
+
+
+def load_inbox() -> list[dict]:
+    """The mock platform's inbox survives restarts. First run: rebuilt from archived outcomes."""
+    items: list[dict] = []
+    try:
+        if inbox_file().exists():
+            items = [json.loads(ln) for ln in inbox_file().read_text().splitlines() if ln.strip()]
+        else:
+            items = [{**c["outcome"], "received_at": c["outcome"].get("t", 0)}
+                     for c in archived() if c.get("outcome")]
+    except (OSError, ValueError) as e:
+        log.error("inbox.load_failed %r", e)
+    return sorted(items, key=lambda r: r.get("received_at", 0), reverse=True)
 
 
 def archived() -> list[dict]:
@@ -88,6 +106,7 @@ async def lifespan(_: FastAPI):
     mt = SarvamMT(os.environ.get("SARVAM_API_KEY", ""))
     mt_formal = SarvamMT(os.environ.get("SARVAM_API_KEY", ""), mode="formal")
     claude = AsyncAnthropic()
+    PLATFORM[:] = load_inbox()
     await mt.prewarm()
     yield
     await mt.aclose()
@@ -400,7 +419,14 @@ async def end_call(ch: str):
 
 @app.post("/platform/webhook")
 async def platform_webhook(record: dict):
-    PLATFORM.insert(0, {**record, "received_at": time.time()})
+    item = {**record, "received_at": time.time()}
+    PLATFORM.insert(0, item)
+    try:
+        inbox_file().parent.mkdir(parents=True, exist_ok=True)
+        with inbox_file().open("a") as f:
+            f.write(json.dumps(item, ensure_ascii=False) + "\n")
+    except OSError as e:
+        log.error("inbox.save_failed %r", e)
     return {"ok": True}
 
 
