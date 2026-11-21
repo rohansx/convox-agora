@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Convox Call</title>
+<script src="https://cdn.jsdelivr.net/npm/agora-rtc-sdk-ng@4.22.0/AgoraRTC_N-production.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<style>
+  :root { --bg:#0d0f12; --panel:#161a20; --line:#262c35; --text:#e8ecf1; --muted:#8b95a3;
+          --accent:#4fb3ff; --ok:#3ecf8e; --warn:#f5b942; --bad:#ff6b6b; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font:15px/1.45 system-ui,-apple-system,"Noto Sans","Noto Sans Kannada","Noto Sans Devanagari",sans-serif; }
+  main { max-width:1100px; margin:0 auto; padding:16px; }
+  h1 { font-size:20px; margin:0 0 4px; } h2 { font-size:13px; text-transform:uppercase;
+       letter-spacing:.08em; color:var(--muted); margin:0 0 10px; }
+  .sub { color:var(--muted); margin:0 0 16px; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; }
+  .grid { display:grid; gap:12px; grid-template-columns:1fr; }
+  @media (min-width:860px) { .grid.call { grid-template-columns:1.1fr 1fr; } .grid.two { grid-template-columns:1fr 1fr; } }
+  button { font:inherit; border:0; border-radius:10px; padding:12px 16px; cursor:pointer;
+           background:var(--accent); color:#04121f; font-weight:600; }
+  button.ghost { background:transparent; color:var(--text); border:1px solid var(--line); }
+  button.bad { background:var(--bad); color:#1d0505; }
+  button:disabled { opacity:.5; cursor:default; }
+  select, input { font:inherit; background:#0f1217; color:var(--text); border:1px solid var(--line);
+                  border-radius:8px; padding:9px; width:100%; }
+  label { display:block; color:var(--muted); font-size:13px; margin:10px 0 4px; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .detail { border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:8px; }
+  .detail .k { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.06em; }
+  .detail .v { font-size:18px; font-weight:600; margin:2px 0; }
+  .badge { font-size:12px; padding:2px 8px; border-radius:99px; border:1px solid var(--line); color:var(--muted); }
+  .badge.confirmed { color:var(--ok); border-color:var(--ok); }
+  .badge.awaiting { color:var(--warn); border-color:var(--warn); }
+  .badge.rejected { color:var(--bad); border-color:var(--bad); }
+  .line { padding:8px 0; border-bottom:1px solid var(--line); }
+  .line .who { font-size:12px; color:var(--muted); }
+  .line .tr { color:var(--accent); }
+  .log { font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; }
+  .log div { padding:3px 0; } .log .tool { color:var(--accent); }
+  .scroll { max-height:46vh; overflow:auto; }
+  .outcome { border-radius:12px; padding:14px; margin-top:12px; }
+  .outcome.ok { background:rgba(62,207,142,.12); border:1px solid var(--ok); }
+  .outcome.follow { background:rgba(245,185,66,.12); border:1px solid var(--warn); }
+  .qr { background:#fff; padding:8px; border-radius:8px; display:inline-block; }
+  .qr img { display:block; width:180px; height:180px; }
+  a { color:var(--accent); word-break:break-all; }
+  .status { font-size:13px; color:var(--muted); }
+  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--muted); margin-right:6px; }
+  .dot.live { background:var(--ok); }
+  .empty { color:var(--muted); font-size:14px; }
+</style>
+</head>
+<body>
+<main id="app"></main>
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const LANGS = { "kn-IN":"Kannada", "hi-IN":"Hindi", "ta-IN":"Tamil", "te-IN":"Telugu", "mr-IN":"Marathi",
+                "gu-IN":"Gujarati", "bn-IN":"Bengali", "ml-IN":"Malayalam", "en-IN":"English" };
+const UI = {  // the few labels a person reads mid-call, in their text language
+  "kn-IN": { card:"ಕರೆ ಕಾರ್ಡ್", confirm:"ಸರಿಯೇ?", yes:"ಹೌದು", no:"ಇಲ್ಲ", end:"ಕರೆ ಮುಗಿಸಿ", join:"ಕರೆಗೆ ಸೇರಿ" },
+  "hi-IN": { card:"कॉल कार्ड", confirm:"सही है?", yes:"हाँ", no:"नहीं", end:"कॉल खत्म करें", join:"कॉल जॉइन करें" },
+  "en-IN": { card:"Call card", confirm:"Correct?", yes:"Yes", no:"No", end:"End call", join:"Join call" },
+};
+const params = new URLSearchParams(location.search);
+const ch = params.get("ch"), role = params.get("role");
+const api = (path, body) => fetch(path, body === undefined ? {} : {
+  method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify(body) })
+  .then(async r => { if (!r.ok) throw new Error(`${r.status} ${await r.text()}`); return r.json(); });
+
+const langOptions = sel => Object.entries(LANGS).map(([c, n]) =>
+  `<option value="${c}" ${c === sel ? "selected" : ""}>${n}</option>`).join("");
+
+function qr(url) {
+  const q = qrcode(0, "M"); q.addData(url); q.make();
+  return `<div class="qr"><img src="${q.createDataURL(6, 2)}" alt="QR code for ${esc(url)}"></div>`;
+}
+
+// ---------- start screen ----------
+function startScreen() {
+  $("#app").innerHTML = `
+    <h1>Convox</h1>
+    <p class="sub">A live interpreter between a rider and a customer, on Agora. Each person speaks
+      and hears their own language; Convox keeps the details and tells the platform how the call went.</p>
+    <div class="grid two">
+      <div class="panel">
+        <h2>Rider</h2>
+        <label>Speaks</label><select id="r_speak">${langOptions("kn-IN")}</select>
+        <label>Reads</label><select id="r_text">${langOptions("kn-IN")}</select>
+      </div>
+      <div class="panel">
+        <h2>Customer</h2>
+        <label>Speaks</label><select id="c_speak">${langOptions("hi-IN")}</select>
+        <label>Reads</label><select id="c_text">${langOptions("hi-IN")}</select>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:12px">
+      <label>Call purpose (from the platform, optional)</label>
+      <input id="purpose" placeholder="find pickup, parcel delivery, OTP...">
+      <div class="row" style="margin-top:12px">
+        <button id="go">Start call</button>
+        <a href="/platform" target="_blank">Open the mock platform</a>
+      </div>
+      <p id="err" class="status"></p>
+    </div>
+    <div id="links"></div>`;
+  $("#go").onclick = async () => {
+    $("#go").disabled = true; $("#err").textContent = "Starting the interpreters…";
+    try {
+      const r = await api("/calls", {
+        rider: { speak_lang: $("#r_speak").value, text_lang: $("#r_text").value, gender: "m" },
+        customer: { speak_lang: $("#c_speak").value, text_lang: $("#c_text").value, gender: "f" },
+        purpose: $("#purpose").value.trim() || null });
+      $("#err").textContent = "";
+      $("#links").innerHTML = `<div class="grid two" style="margin-top:12px">${["rider","customer"].map(ro => {
+        const url = r.links[ro].startsWith("http") ? r.links[ro] : `${location.origin}${r.links[ro]}`;
+        return `<div class="panel"><h2>${ro} phone</h2>${qr(url)}<p><a href="${url}" target="_blank">${esc(url)}</a></p></div>`;
+      }).join("")}</div>`;
+    } catch (e) { $("#err").textContent = `Could not start: ${e.message}`; $("#go").disabled = false; }
+  };
+}
+
+// ---------- call screen ----------
+const state = { lines:[], details:{}, log:[], outcome:null, me:null, other:null, ended:false };
+let rtc = null, mic = null;
+
+function t(key) { return (UI[state.me?.text_lang] || UI["en-IN"])[key]; }
+
+function render() {
+  const me = state.me, other = state.other;
+  const details = Object.values(state.details);
+  const valueFor = d => (role === "rider" ? d.value_rider : d.value_customer) || d.value;
+  $("#card").innerHTML = details.length ? details.map(d => `
+    <div class="detail">
+      <div class="row" style="justify-content:space-between">
+        <span class="k">${esc(d.type.replace("_"," "))} · ${esc(d.said_by)}</span>
+        <span class="badge ${esc(d.status)}">${esc(d.status)}</span></div>
+      <div class="v">${esc(valueFor(d))}</div>
+      ${d.status === "awaiting" && d.confirm_by === role ? `
+        <div class="row"><span>${esc(t("confirm"))}</span>
+          <button data-id="${esc(d.id)}" data-yes="1">${esc(t("yes"))}</button>
+          <button class="ghost" data-id="${esc(d.id)}" data-yes="0">${esc(t("no"))}</button></div>` : ""}
+    </div>`).join("") : `<p class="empty">Details said on the call appear here.</p>`;
+  $("#card").querySelectorAll("button[data-id]").forEach(b => b.onclick = () =>
+    api(`/calls/${ch}/confirm`, { detail_id:b.dataset.id, role, yes:b.dataset.yes === "1" }).catch(e => alert(e.message)));
+
+  $("#lines").innerHTML = state.lines.filter(l => l.speaker !== "system").map(l => {
+    const mine = l.speaker === role;
+    return `<div class="line"><div class="who">${esc(l.speaker)}${l.latency_ms ? ` · ${l.latency_ms} ms` : ""}</div>
+      <div>${esc(l.text)}</div>${!mine && l.translation ? `<div class="tr">${esc(l.translation)}</div>` : ""}</div>`;
+  }).join("") || `<p class="empty">Speak after joining. You hear the other person in ${esc(LANGS[me.speak_lang])}.</p>`;
+  $("#lines").scrollTop = 1e9;
+
+  $("#log").innerHTML = state.log.map(e => `<div>${new Date(e.t*1000).toLocaleTimeString()} ${
+    e.tool ? `<span class="tool">${esc(e.tool)}</span> ` : ""}${esc(e.text)}</div>`).join("");
+  $("#log").scrollTop = 1e9;
+
+  const o = state.outcome;
+  $("#outcome").innerHTML = o ? (o.kind === "followup"
+    ? `<div class="outcome follow"><strong>Unresolved, follow-up created</strong> · ${esc(o.reason)}<br>
+        ${esc(role === "rider" ? o.summary_rider : o.summary_customer)}<br><em>Next step: ${esc(o.next_step)}</em></div>`
+    : `<div class="outcome ok"><strong>Call ${esc(o.status)}</strong> · ${esc(o.purpose)}<br>${esc(o.summary)}</div>`) : "";
+  $("#end").disabled = state.ended;
+}
+
+async function callScreen() {
+  const info = await api(`/calls/${ch}/join?role=${encodeURIComponent(role)}`);
+  state.me = info.me; state.other = info.other;
+  $("#app").innerHTML = `
+    <div class="row" style="justify-content:space-between">
+      <div><h1>${esc(role === "rider" ? "Rider" : "Customer")} · ${esc(LANGS[info.me.speak_lang])}</h1>
+        <p class="sub" style="margin:0">Talking with the ${esc(info.other.role)} (${esc(LANGS[info.other.speak_lang])})</p></div>
+      <div class="row"><span class="status" id="status"><span class="dot"></span>not joined</span>
+        <button id="join">${esc((UI[info.me.text_lang]||UI["en-IN"]).join)}</button>
+        <button id="end" class="bad">${esc((UI[info.me.text_lang]||UI["en-IN"]).end)}</button></div>
+    </div>
+    <div id="outcome"></div>
+    <div class="grid call" style="margin-top:12px">
+      <div class="panel"><h2 id="cardh"></h2><div id="card"></div></div>
+      <div class="panel"><h2>Conversation</h2><div id="lines" class="scroll"></div></div>
+    </div>
+    <div class="panel" style="margin-top:12px"><h2>Convox actions</h2><div id="log" class="log scroll"></div></div>`;
+  $("#cardh").textContent = (UI[info.me.text_lang] || UI["en-IN"]).card;
+  $("#join").onclick = () => join(info).catch(e => { $("#status").textContent = `join failed: ${e.message}`; });
+  $("#end").onclick = async () => { $("#end").disabled = true; await leave(); await api(`/calls/${ch}/end`, {}); };
+
+  const es = new EventSource(`/calls/${ch}/events`);
+  es.addEventListener("snapshot", e => { const s = JSON.parse(e.data);
+    Object.assign(state, { lines:s.lines, log:s.log, outcome:s.outcome, ended:s.ended,
+      details:Object.fromEntries(s.details.map(d => [d.id, d])) }); render(); });
+  es.addEventListener("line", e => { state.lines.push(JSON.parse(e.data)); render(); });
+  es.addEventListener("detail", e => { const d = JSON.parse(e.data); state.details[d.id] = d; render(); });
+  es.addEventListener("log", e => { state.log.push(JSON.parse(e.data)); render(); });
+  es.addEventListener("outcome", e => { state.outcome = JSON.parse(e.data); render(); });
+  es.addEventListener("ended", () => { state.ended = true; leave(); render(); });
+  render();
+}
+
+async function join(info) {
+  $("#join").disabled = true;
+  rtc = AgoraRTC.createClient({ mode:"rtc", codec:"vp8" });
+  rtc.on("user-published", async (user, mediaType) => {
+    if (mediaType !== "audio") return;
+    // The key trick: play only MY interpreter. The other human's raw voice is never played.
+    if (user.uid !== info.play_uid) return;
+    await rtc.subscribe(user, "audio");
+    user.audioTrack.play();
+  });
+  await rtc.join(info.app_id, info.channel, info.token, info.uid);
+  mic = await AgoraRTC.createMicrophoneAudioTrack({ AEC:true, ANS:true, AGC:true });
+  await rtc.publish([mic]);
+  $("#status").innerHTML = `<span class="dot live"></span>live`;
+}
+
+async function leave() {
+  try { mic?.close(); await rtc?.leave(); } catch (e) { console.warn(e); }
+  rtc = null; mic = null;
+  const s = $("#status"); if (s) s.innerHTML = `<span class="dot"></span>left`;
+}
+
+if (ch && role) callScreen().catch(e => { $("#app").innerHTML = `<p>Could not open the call: ${esc(e.message)}</p>`; });
+else startScreen();
+</script>
+</body>
+</html>

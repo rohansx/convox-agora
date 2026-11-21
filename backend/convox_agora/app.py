@@ -167,7 +167,7 @@ async def create_call(body: CallIn):
                  "get_call_context")
     await agora.start_agents(call, http)
     return {"channel": ch, "agents": call.agent_ids,
-            "links": {r: f"/?ch={ch}&role={r}" for r in ROLES}}
+            "links": {r: f"{os.environ.get('PUBLIC_URL', '')}/?ch={ch}&role={r}" for r in ROLES}}
 
 
 @app.get("/calls/{ch}/join")

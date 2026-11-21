@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fleet Ops Inbox</title>
+<style>
+  :root { --bg:#f6f7f9; --panel:#fff; --line:#e3e6ea; --text:#15191e; --muted:#69727d;
+          --ok:#12805c; --warn:#b26b00; --unclear:#5b6472; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font:15px/1.45 system-ui,-apple-system,"Noto Sans","Noto Sans Kannada","Noto Sans Devanagari",sans-serif; }
+  main { max-width:900px; margin:0 auto; padding:16px; }
+  h1 { font-size:20px; margin:0; } .sub { color:var(--muted); margin:4px 0 16px; }
+  .item { background:var(--panel); border:1px solid var(--line); border-left-width:4px; border-radius:10px;
+          padding:14px; margin-bottom:10px; }
+  .item.resolved { border-left-color:var(--ok); } .item.followup { border-left-color:var(--warn); }
+  .item.unclear { border-left-color:var(--unclear); }
+  .top { display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+  .tag { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
+  .resolved .tag { color:var(--ok); } .followup .tag { color:var(--warn); } .unclear .tag { color:var(--unclear); }
+  .meta { color:var(--muted); font-size:13px; }
+  .bi { margin:8px 0 0; padding:8px 10px; background:var(--bg); border-radius:8px; font-size:14px; }
+  ul { margin:6px 0 0 18px; padding:0; }
+  .empty { color:var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Fleet Ops Inbox</h1>
+  <p class="sub">Mock platform. Convox posts one standard record per call to <code>/platform/webhook</code>.</p>
+  <div id="items"><p class="empty">Waiting for calls…</p></div>
+</main>
+<script>
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function card(r) {
+  const cls = r.kind === "followup" ? "followup" : r.status;
+  const tag = r.kind === "followup" ? "Follow-up needed" : `Call ${r.status}`;
+  const when = new Date((r.received_at || r.t) * 1000).toLocaleTimeString();
+  return `<div class="item ${esc(cls)}">
+    <div class="top"><span class="tag">${esc(tag)}</span><span class="meta">${esc(r.channel)} · ${when}</span></div>
+    <div><strong>${esc(r.purpose)}</strong>${r.reason ? ` · ${esc(r.reason)}` : ""}</div>
+    <div>${esc(r.summary)}</div>
+    ${r.agreed_details?.length ? `<ul>${r.agreed_details.map(d => `<li>${esc(d)}</li>`).join("")}</ul>` : ""}
+    ${r.summary_rider ? `<div class="bi">Rider: ${esc(r.summary_rider)}</div>` : ""}
+    ${r.summary_customer ? `<div class="bi">Customer: ${esc(r.summary_customer)}</div>` : ""}
+    ${r.next_step ? `<div style="margin-top:8px"><strong>Next step:</strong> ${esc(r.next_step)}</div>` : ""}
+  </div>`;
+}
+async function poll() {
+  try {
+    const items = await (await fetch("/platform/items")).json();
+    document.getElementById("items").innerHTML = items.length ? items.map(card).join("")
+      : `<p class="empty">Waiting for calls…</p>`;
+  } catch (e) { console.warn(e); }
+}
+poll(); setInterval(poll, 2000);
+</script>
+</body>
+</html>
