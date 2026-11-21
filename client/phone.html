@@ -104,6 +104,7 @@ async function leave() {
   $("#tap").onclick = () => join().catch(e => { $("#status").textContent = `could not join: ${e.message}`; $("#tap").disabled = false; });
   $("#leave").onclick = async () => { $("#leave").disabled = true; await leave(); await api(`/calls/${ch}/end`, {}); };
   subscribe(ch, state, render);
+  if (params.get("autostart") === "1") $("#tap").click();  // for automated end-to-end tests
 })().catch(e => { document.body.innerHTML = `<p class="phone-ended">Could not open the call: ${esc(e.message)}</p>`; });
 </script>
 </body>
