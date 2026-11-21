@@ -21,6 +21,8 @@ const UI = {
              yes: "ಹೌದು", no: "ಇಲ್ಲ", listening: "ಕೇಳುತ್ತಿದೆ", speaking: "ಮಾತನಾಡುತ್ತಿದೆ" },
   "hi-IN": { start: "शुरू करें", leave: "कॉल खत्म करें", card: "कॉल की जानकारी", confirm: "सही है?",
              yes: "हाँ", no: "नहीं", listening: "सुन रहा है", speaking: "बोल रहा है" },
+  "mr-IN": { start: "सुरू करा", leave: "कॉल संपवा", card: "कॉलची माहिती", confirm: "बरोबर आहे?",
+             yes: "हो", no: "नाही", listening: "ऐकत आहे", speaking: "बोलत आहे" },
   "en-IN": { start: "Start", leave: "End call", card: "Call details", confirm: "Correct?",
              yes: "Yes", no: "No", listening: "Listening", speaking: "Speaking" },
 };

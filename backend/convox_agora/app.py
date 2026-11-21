@@ -298,7 +298,7 @@ async def presence(ch: str, body: PresenceIn):
 
 class DemoIn(BaseModel):
     story: str
-    lang: str = Field(default="hi-IN", pattern=r"^(hi|kn)-IN$")
+    lang: str = Field(default="hi-IN", pattern=r"^(hi|kn|mr)-IN$")
 
 
 @app.get("/demo/stories")
@@ -313,7 +313,7 @@ async def create_demo_call(body: DemoIn):
     story = persona.STORIES.get(body.story)
     if story is None:
         raise HTTPException(404, "unknown story")
-    ai_lang = "kn-IN" if body.lang == "hi-IN" else "hi-IN"
+    ai_lang = "hi-IN" if body.lang == "kn-IN" else "kn-IN"  # Hindi or Marathi caller -> Kannada rider
     ch = f"cvx{secrets.token_hex(4)}"
     people = {"rider": Person("rider", ai_lang, ai_lang, story["gender"]),
               "customer": Person("customer", body.lang, body.lang, None)}

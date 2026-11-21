@@ -51,6 +51,7 @@ VOICES = {
     ("hi-IN", "f"): "hi-IN-khyati", ("hi-IN", "m"): "hi-IN-aman",
     ("ta-IN", "m"): "ta-IN-karthikeyan", ("ta-IN", "f"): "hi-IN-poonam",
     ("te-IN", "m"): "en-IN-samar", ("te-IN", "f"): "en-IN-anisha",
+    ("mr-IN", "m"): "mr-IN-prathamesh", ("mr-IN", "f"): "hi-IN-rachna",
 }
 
 
