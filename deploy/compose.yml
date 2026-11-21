@@ -1,0 +1,31 @@
+# Convox on Agora on the shared VPS (Dokploy's Traefik owns :80/:443 and gets the cert).
+# Run from /opt/convox-agora:  docker compose -f deploy/compose.yml --env-file .env up -d --build
+name: convox-agora
+
+services:
+  app:
+    build:
+      context: ..
+      network: host  # the VPS's docker bridge is slow to reach PyPI
+    env_file: ../.env
+    volumes:
+      - data:/data
+    networks: [dokploy-network]
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: dokploy-network
+      traefik.http.routers.convox-agora-web.rule: Host(`app.convox.ai`)
+      traefik.http.routers.convox-agora-web.entrypoints: web
+      traefik.http.routers.convox-agora-web.middlewares: redirect-to-https@file
+      traefik.http.routers.convox-agora.rule: Host(`app.convox.ai`)
+      traefik.http.routers.convox-agora.entrypoints: websecure
+      traefik.http.routers.convox-agora.tls.certresolver: letsencrypt
+      traefik.http.services.convox-agora.loadbalancer.server.port: "8000"
+    restart: unless-stopped
+
+networks:
+  dokploy-network:
+    external: true
+
+volumes:
+  data: {}
