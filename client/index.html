@@ -42,7 +42,8 @@
     <div class="stage-bar">
       <div class="try-controls" id="controls">
         <div class="picker-row" id="picker">
-          <select class="pick" id="pair" aria-label="Languages"></select>
+          <select class="pick" id="rlang" aria-label="Rider speaks"></select>
+          <select class="pick" id="clang" aria-label="Customer speaks"></select>
           <select class="pick" id="purpose" aria-label="Call purpose"></select>
           <button type="button" class="btn btn-white try-start" id="start">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-2.1A7 7 0 0 0 19 12h-2Z"/></svg>
@@ -110,7 +111,13 @@ $("#logo").innerHTML = LOGO;
 
 const PAIRS = [["kn-IN", "hi-IN"], ["hi-IN", "kn-IN"], ["kn-IN", "ta-IN"], ["hi-IN", "ta-IN"], ["kn-IN", "te-IN"], ["hi-IN", "te-IN"], ["kn-IN", "mr-IN"], ["kn-IN", "ml-IN"], ["kn-IN", "en-IN"]];
 const PURPOSES = ["find pickup", "parcel delivery", "share OTP", "address", ""];
-$("#pair").innerHTML = PAIRS.map(([a, b]) => `<option value="${a}|${b}">Rider ${lang(a).native} ⇄ Customer ${lang(b).native}</option>`).join("");
+const CALL_LANGS = ["kn-IN", "hi-IN", "ta-IN", "te-IN", "mr-IN", "ml-IN", "en-IN"];
+const langOpts = (who, sel) => CALL_LANGS.map(c => `<option value="${c}" ${c === sel ? "selected" : ""}>${who} · ${lang(c).native}${lang(c).native !== lang(c).english ? ` (${lang(c).english})` : ""}</option>`).join("");
+$("#rlang").innerHTML = langOpts("Rider", "kn-IN");
+$("#clang").innerHTML = langOpts("Customer", "hi-IN");
+// the two sides must differ: picking the other side's language swaps them
+$("#rlang").onchange = () => { if ($("#rlang").value === $("#clang").value) $("#clang").value = $("#rlang").value === "hi-IN" ? "kn-IN" : "hi-IN"; };
+$("#clang").onchange = () => { if ($("#rlang").value === $("#clang").value) $("#rlang").value = $("#clang").value === "kn-IN" ? "hi-IN" : "kn-IN"; };
 $("#purpose").innerHTML = PURPOSES.map(p => `<option value="${p}">${p ? `Purpose: ${p}` : "Purpose: unknown"}</option>`).join("");
 
 const SIDE = { rider: "a", customer: "b" };
@@ -362,7 +369,7 @@ async function leaveRtc() {
 }
 
 $("#start").onclick = async () => {
-  const [a, b] = $("#pair").value.split("|");
+  const a = $("#rlang").value, b = $("#clang").value;
   $("#start").disabled = true; $("#pill").textContent = "Starting the interpreters…";
   try {
     const r = await api("/calls", {
