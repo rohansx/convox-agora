@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { VerdictBadge } from "@/components/verdict-badge";
 import { type Call, hhmm, hms, lang, median, pair, secs, toolCalls, turns, verdict } from "@/lib/data";
 import { cn } from "@/lib/utils";
+import { DEMO_CALLS, isDemoChannel } from "@/lib/demo";
 
 const HIDE_ARGS = new Set(["summary_rider", "summary_customer", "value_rider", "value_customer"]);
 const STATUS_TONE: Record<string, string> = {
@@ -25,6 +26,8 @@ function useCall(id: string) {
   useEffect(() => {
     let alive = true;
     let timer: ReturnType<typeof setTimeout>;
+    const sample = isDemoChannel(id) ? DEMO_CALLS.find((c) => c.channel === id) : undefined;
+    if (sample) { setCall(sample); return; }
     const load = async () => {
       try {
         const r = await fetch(`/calls/${encodeURIComponent(id)}`, { headers: { accept: "application/json" } });
@@ -118,9 +121,9 @@ export function CallDetailPage() {
         {c.ai_role && <Badge variant="outline" className="gap-1"><Bot className="size-3" /> Try it live</Badge>}
         <VerdictBadge v={verdict(c)} />
         <span className="text-muted-foreground font-mono text-xs">{hhmm(c.created_at)} · {c.channel} · {c.purpose ?? "purpose unknown"}</span>
-        <Button asChild size="sm" variant="outline" className="ml-auto">
+        {!isDemoChannel(c.channel) && <Button asChild size="sm" variant="outline" className="ml-auto">
           <a href={`/call?ch=${encodeURIComponent(c.channel)}`}><ExternalLink className="size-4" /> Open live view</a>
-        </Button>
+        </Button>}
       </div>
 
       <Outcome c={c} />

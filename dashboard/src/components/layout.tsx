@@ -1,4 +1,6 @@
 import { Mic } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { useDemo } from "@/lib/data";
 import { Outlet, useLocation } from "react-router-dom";
 import { AppSidebar, NAV } from "@/components/app-sidebar";
 import { Button } from "@/components/ui/button";
@@ -8,6 +10,7 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbP
 
 export function Layout() {
   const { pathname } = useLocation();
+  const demo = useDemo();
   const section = NAV.find((n) => (n.to === "/" ? pathname === "/" : pathname.startsWith(n.to)));
   const callId = pathname.startsWith("/calls/") ? decodeURIComponent(pathname.split("/")[2]) : null;
   return (
@@ -27,9 +30,10 @@ export function Layout() {
               {callId && (<><BreadcrumbSeparator /><BreadcrumbItem><BreadcrumbPage className="font-mono">{callId}</BreadcrumbPage></BreadcrumbItem></>)}
             </BreadcrumbList>
           </Breadcrumb>
+          {demo && <Badge className="ml-3 border-0 bg-amber-100 font-mono text-[10px] tracking-[0.16em] text-amber-800 uppercase">Demo data</Badge>}
           <div className="ml-auto flex items-center gap-2">
             <span className="text-muted-foreground hidden items-center gap-1.5 text-xs sm:inline-flex">
-              <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" /> live · refreshes every 3 s
+              {demo ? <>sample week · not real calls</> : <><span className="size-1.5 animate-pulse rounded-full bg-emerald-500" /> live · refreshes every 3 s</>}
             </span>
             <Button asChild size="sm">
               <a href="/demo"><Mic className="size-4" /> Try it live</a>

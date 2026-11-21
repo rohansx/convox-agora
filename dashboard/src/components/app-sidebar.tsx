@@ -1,4 +1,6 @@
-import { AudioLines, ClipboardList, Inbox, LayoutDashboard, Mic, Phone, PhoneCall, Wrench } from "lucide-react";
+import { AudioLines, ClipboardList, Database, Inbox, LayoutDashboard, Mic, Phone, PhoneCall, Wrench } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { setDemo, useDemo } from "@/lib/data";
 import { Link, useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -30,6 +32,7 @@ const LIVE = [
 
 export function AppSidebar() {
   const { pathname } = useLocation();
+  const demo = useDemo();
   const active = (to: string) => (to === "/" ? pathname === "/" : pathname.startsWith(to));
   return (
     <Sidebar collapsible="icon">
@@ -87,6 +90,19 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild tooltip="Demo data">
+              <label className="cursor-pointer">
+                <Database />
+                <span className="flex flex-1 items-center justify-between gap-2">
+                  Demo data
+                  <Switch checked={demo} onCheckedChange={setDemo} aria-label="Demo data" className="scale-75" />
+                </span>
+              </label>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
         <p className="text-muted-foreground px-2 text-[11px] leading-snug group-data-[collapsible=icon]:hidden">
           Agora Conversational AI · Sarvam ASR + Mayura · Murf Falcon · Claude tool calling
         </p>

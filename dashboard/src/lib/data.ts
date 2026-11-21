@@ -1,5 +1,20 @@
 /** Every call, live and archived, from the backend's /dashboard/data (polled). */
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { DEMO_CALLS } from "@/lib/demo";
+
+// "Demo data" switch: remembered per browser; sample calls are generated client-side (lib/demo.ts)
+const DEMO_KEY = "convox-demo";
+const readDemo = () => { try { return localStorage.getItem(DEMO_KEY) === "1"; } catch { return false; } };
+export function setDemo(on: boolean) {
+  try { localStorage.setItem(DEMO_KEY, on ? "1" : "0"); } catch { /* private mode: session only */ }
+  window.dispatchEvent(new Event(DEMO_KEY));
+}
+export function useDemo(): boolean {
+  return useSyncExternalStore(
+    (cb) => { window.addEventListener(DEMO_KEY, cb); return () => window.removeEventListener(DEMO_KEY, cb); },
+    readDemo,
+  );
+}
 
 export interface Person { role: string; speak_lang: string; text_lang: string; gender: string | null }
 export interface Line { n: number; speaker: string; text: string; translation: string; latency_ms: number; t: number }
@@ -48,9 +63,11 @@ export const openCall = (ch: string) => { window.location.href = `/app/calls/${e
 
 /** All calls, newest first, refreshed every 3 s. */
 export function useCalls() {
+  const demo = useDemo();
   const [calls, setCalls] = useState<Call[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
+    if (demo) { setCalls(DEMO_CALLS); setError(null); return; }
     let alive = true;
     const load = async () => {
       try {
@@ -65,6 +82,6 @@ export function useCalls() {
     load();
     const id = setInterval(load, 3000);
     return () => { alive = false; clearInterval(id); };
-  }, []);
+  }, [demo]);
   return { calls, error };
 }
