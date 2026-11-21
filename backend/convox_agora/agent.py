@@ -132,7 +132,13 @@ def _prompt(call: Call, final: bool) -> str:
     )
 
 
+REQUIRED = {t["name"]: t["input_schema"]["required"] for t in (CAPTURE, CONFIRM, LOG_OUTCOME, FOLLOWUP)}
+
+
 async def _apply(call: Call, name: str, args: dict, notify: Notify) -> str:
+    missing = [k for k in REQUIRED.get(name, []) if k not in args]
+    if missing:  # check before touching the card, so a half call never lands on it
+        return f"error: missing {', '.join(missing)}"
     if name == "capture_detail":
         did = f"d{len(call.details) + 1}"
         detail = {**args, "id": did, "status": "said"}

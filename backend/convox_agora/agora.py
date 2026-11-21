@@ -44,11 +44,37 @@ def _auth() -> dict[str, str]:
     return {"Authorization": f"Basic {base64.b64encode(raw).decode()}"}
 
 
-def join_body(call: Call, listener: str) -> dict:
+# Murf Falcon voices, by language and the gender of the person whose words are spoken.
+# kn male: a multi-native Hindi voice that speaks Kannada (Murf has no native male kn voice).
+VOICES = {
+    ("kn-IN", "f"): "kn-IN-harshitha", ("kn-IN", "m"): "hi-IN-chirag",
+    ("hi-IN", "f"): "hi-IN-khyati", ("hi-IN", "m"): "hi-IN-aman",
+    ("ta-IN", "m"): "ta-IN-karthikeyan", ("ta-IN", "f"): "hi-IN-poonam",
+    ("te-IN", "m"): "en-IN-samar", ("te-IN", "f"): "en-IN-anisha",
+}
+
+
+def voice_for(lang: str, gender: str | None) -> str:
+    return VOICES.get((lang, gender or "f")) or VOICES.get((lang, "f")) or "hi-IN-khyati"
+
+
+def join_body(call: Call, listener: str, hears_from: str, voice_gender: str | None,
+              greeting: str | None = None) -> dict:
+    """One agent: listens to `hears_from` (ASR in their language), our /llm endpoint produces the
+    line, Murf speaks it to `listener` in their language. Two-person calls: hears_from is the other
+    human. /demo: hears_from is the listener themself, and /llm answers as the persona."""
     hears = call.people[listener]
-    speaker = call.other(listener)
+    speaker = call.people[hears_from]
     agent_uid = AGENT_UID[listener]
-    voice = env("MURF_VOICE_KN") if hears.speak_lang.startswith("kn") else env("MURF_VOICE_HI")
+    llm: dict = {
+        "url": f"{env('PUBLIC_URL')}/llm/{call.channel}/{hears_from}/chat/completions",
+        "api_key": env("LLM_SHARED_KEY"),
+        "max_history": 2,
+        "system_messages": [],
+        "params": {"model": "convox-interp"},
+    }
+    if greeting:
+        llm["greeting_message"] = greeting
     return {
         "name": f"convox-{call.channel}-{listener}",
         "properties": {
@@ -62,19 +88,13 @@ def join_body(call: Call, listener: str) -> dict:
                 "language": speaker.speak_lang,
                 "params": {"api_key": env("SARVAM_API_KEY"), "language": speaker.speak_lang},
             },
-            "llm": {
-                "url": f"{env('PUBLIC_URL')}/llm/{call.channel}/{speaker.role}/chat/completions",
-                "api_key": env("LLM_SHARED_KEY"),
-                "max_history": 2,
-                "system_messages": [],
-                "params": {"model": "convox-interp"},
-            },
+            "llm": llm,
             "tts": {  # VERIFY: murf vendor param names
                 "vendor": "murf",
                 "params": {
                     "api_key": env("MURF_API_KEY"),
                     "model": "FALCON",
-                    "voice_id": voice,
+                    "voice_id": voice_for(hears.speak_lang, voice_gender),
                     "locale": hears.speak_lang,
                 },
             },
@@ -82,20 +102,28 @@ def join_body(call: Call, listener: str) -> dict:
     }
 
 
-async def start_agents(call: Call, client: httpx.AsyncClient) -> None:
+async def _join(call: Call, client: httpx.AsyncClient, listener: str, body: dict) -> None:
+    r = await client.post(f"{API}/{env('AGORA_APP_ID')}/join", json=body, headers=_auth())
+    if r.status_code >= 400:
+        log.error("agora.join_failed %s %s", r.status_code, r.text)
+        call.add_log(f"Agent for {listener} failed to join: HTTP {r.status_code} {r.text[:200]}")
+        return
+    call.agent_ids[listener] = r.json()["agent_id"]
+    call.add_log(f"Interpreter joined for the {listener} ({call.people[listener].speak_lang})")
+
+
+async def start_agents(call: Call, client: httpx.AsyncClient, greeting: str | None = None) -> None:
     if not can_start_agents():
         call.add_log("Agora agents not started: AGORA_CUSTOMER_* or PUBLIC_URL missing")
         return
+    if call.ai_role:  # /demo: one agent, between the human and the persona
+        human = call.other(call.ai_role).role
+        body = join_body(call, human, human, call.people[call.ai_role].gender, greeting)
+        await _join(call, client, human, body)
+        return
     for listener in ("rider", "customer"):
-        r = await client.post(
-            f"{API}/{env('AGORA_APP_ID')}/join", json=join_body(call, listener), headers=_auth()
-        )
-        if r.status_code >= 400:
-            log.error("agora.join_failed %s %s", r.status_code, r.text)
-            call.add_log(f"Agent for {listener} failed to join: HTTP {r.status_code} {r.text[:200]}")
-            continue
-        call.agent_ids[listener] = r.json()["agent_id"]
-        call.add_log(f"Interpreter joined for the {listener} ({call.people[listener].speak_lang})")
+        speaker = call.other(listener)
+        await _join(call, client, listener, join_body(call, listener, speaker.role, speaker.gender))
 
 
 async def stop_agents(call: Call, client: httpx.AsyncClient) -> None:

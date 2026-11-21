@@ -27,7 +27,7 @@ from pydantic import BaseModel, Field
 ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(ROOT / ".env")
 
-from convox_agora import agent, agora  # noqa: E402  (after load_dotenv: modules read env)
+from convox_agora import agent, agora, persona  # noqa: E402  (after load_dotenv: modules read env)
 from convox_agora.numbers import readback  # noqa: E402
 from convox_agora.sarvam_mt import ProviderError, SarvamMT  # noqa: E402
 from convox_agora.state import AGENT_UID, CALLS, HUMAN_UID, ROLES, Call, Person  # noqa: E402
@@ -131,6 +131,37 @@ def _is_filler(text: str) -> bool:
     return not words or all(w.strip(".,!?।") in FILLERS for w in words)
 
 
+async def interpret(call: Call, text: str, src: Person, dst: Person) -> str:
+    """One line into the listener's language: Mayura, native-script fallback, number read-back."""
+    try:
+        out = await mt.translate(text, src.speak_lang, dst.speak_lang, src.gender)
+        if out and not in_script(out, dst.speak_lang):
+            log.info("mt.retry_formal %r", out)
+            out = await mt_formal.translate(text, src.speak_lang, dst.speak_lang, src.gender)
+        return readback(text, out, dst.speak_lang)[0]
+    except ProviderError as e:
+        log.error("mt.failed %s", e)
+        call.add_log(f"Translation failed: {e}")
+        return ""
+
+
+async def persona_turn(call: Call, ai: Person, human: Person) -> str:
+    """/demo: Claude answers as the rider or delivery agent in their language; Convox interprets it."""
+    t0 = time.monotonic()
+    try:
+        said = await persona.reply(call, claude)
+    except Exception:
+        log.exception("persona.failed")
+        return ""
+    if not said:
+        return ""
+    t1 = time.monotonic()
+    heard = await interpret(call, said, ai, human)
+    call.add_line(ai.role, said, heard, int((time.monotonic() - t1) * 1000))
+    log.info("persona.turn reply_ms=%d", int((t1 - t0) * 1000))
+    return heard
+
+
 def _chunk(cid: str, delta: dict, finish: str | None) -> str:
     payload = {"id": cid, "object": "chat.completion.chunk", "created": int(time.time()),
                "model": "convox-interp",
@@ -152,16 +183,10 @@ async def llm(ch: str, speaker: str, request: Request):
     out = ""
     if not _is_filler(text) and not call.ended:
         t0 = time.monotonic()
-        try:
-            out = await mt.translate(text, src.speak_lang, dst.speak_lang, src.gender)
-            if out and not in_script(out, dst.speak_lang):
-                log.info("mt.retry_formal %r", out)
-                out = await mt_formal.translate(text, src.speak_lang, dst.speak_lang, src.gender)
-            out, _ = readback(text, out, dst.speak_lang)
-        except ProviderError as e:
-            log.error("mt.failed %s", e)
-            call.add_log(f"Translation failed: {e}")
+        out = await interpret(call, text, src, dst)
         call.add_line(speaker, text, out, int((time.monotonic() - t0) * 1000))
+        if out and call.ai_role:  # /demo: the persona answers; the human hears its answer
+            out = await persona_turn(call, dst, src)
         if out:
             agent.kick(call, claude, notify_platform)
     cid = f"chatcmpl-{secrets.token_hex(6)}"
@@ -271,6 +296,39 @@ async def presence(ch: str, body: PresenceIn):
     return {"ok": True}
 
 
+class DemoIn(BaseModel):
+    story: str
+    lang: str = Field(default="hi-IN", pattern=r"^(hi|kn)-IN$")
+
+
+@app.get("/demo/stories")
+async def demo_stories():
+    return {k: {f: v[f] for f in ("title", "headline", "stakes", "name", "role")}
+            for k, v in persona.STORIES.items()}
+
+
+@app.post("/demo/calls")
+async def create_demo_call(body: DemoIn):
+    """You are the customer; Claude plays the rider or delivery agent, who speaks the other language."""
+    story = persona.STORIES.get(body.story)
+    if story is None:
+        raise HTTPException(404, "unknown story")
+    ai_lang = "kn-IN" if body.lang == "hi-IN" else "hi-IN"
+    ch = f"cvx{secrets.token_hex(4)}"
+    people = {"rider": Person("rider", ai_lang, ai_lang, story["gender"]),
+              "customer": Person("customer", body.lang, body.lang, None)}
+    call = Call(channel=ch, people=people, purpose=story["purpose"], ai_role="rider", story=body.story,
+                joined={"rider": True})
+    CALLS[ch] = call
+    call.add_log(f"Context loaded: you {body.lang}, {story['name']} ({story['role']}, AI) {ai_lang}, "
+                 f"purpose {story['purpose']}", "get_call_context")
+    said = story["greeting"][ai_lang]
+    heard = await interpret(call, said, people["rider"], people["customer"])
+    call.add_line("rider", said, heard, 0)
+    await agora.start_agents(call, http, greeting=heard)
+    return {"channel": ch, "agents": call.agent_ids}
+
+
 class ConfirmIn(BaseModel):
     detail_id: str
     role: str
@@ -344,6 +402,11 @@ async def dashboard_data():
 @app.get("/call")
 async def host_page():
     return FileResponse(ROOT / "client" / "index.html")
+
+
+@app.get("/demo")
+async def demo_page():
+    return FileResponse(ROOT / "client" / "demo.html")
 
 
 @app.get("/phone")

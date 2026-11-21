@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Try it live · Convox AI</title>
+<meta name="description" content="Call a rider or delivery agent who doesn't speak your language. Convox interprets the call both ways, live, on Agora.">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&family=Geist+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/static/landing.css">
+<link rel="stylesheet" href="/static/try.css">
+<link rel="stylesheet" href="/static/host.css">
+<script src="/static/common.js"></script>
+<style>
+  .stories { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; padding: 8px var(--gut) 24px; }
+  .story { background: var(--paper); border: 1px solid var(--line); border-radius: 20px; padding: 22px; box-shadow: var(--shadow-sm);
+    display: flex; flex-direction: column; gap: 12px; }
+  .story-title { font: 500 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+  .story h2 { font-size: 28px; font-weight: 400; letter-spacing: -.035em; line-height: 1.1; }
+  .story .stakes { color: var(--ink-2); }
+  .persona { display: grid; gap: 10px; padding: 12px 14px; border-radius: 14px; background: var(--bg); font-size: 15px; }
+  .persona b { font-weight: 500; }
+  .ai { font: 500 10px var(--mono); letter-spacing: .06em; padding: 1px 5px; border-radius: 4px; border: 1px solid var(--line-2); margin-left: 6px; color: var(--muted); }
+  .persona label { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .persona select { font: inherit; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--paper); }
+  .story .btn { align-self: flex-start; margin-top: auto; }
+  .notes { padding: 0 var(--gut) 60px; color: var(--muted); font-size: 14px; display: grid; gap: 6px; max-width: 60em; }
+  .err { color: #b91c1c; font-size: 14px; }
+</style>
+</head>
+<body class="try-body">
+<div class="page">
+<header class="nav">
+  <div class="nav-in">
+    <span id="logo"></span>
+    <nav><span class="try-crumb">Try it live</span></nav>
+    <div class="nav-end">
+      <a class="nav-link" href="/">Dashboard</a>
+      <a class="btn btn-dark btn-sm" href="/call">Two-phone call <span class="arr" aria-hidden="true">→</span></a>
+    </div>
+  </div>
+</header>
+<main>
+  <section class="try-head">
+    <p class="label">Try it live · on Agora</p>
+    <h1>Call someone who doesn't speak your language.</h1>
+    <p class="try-stakes">You are the customer. The rider or delivery agent on the other end speaks only theirs, and is
+      played by an AI. Convox interprets every line both ways, live, and tells the platform how the call went.</p>
+  </section>
+  <section class="stories" id="stories"></section>
+  <ul class="notes">
+    <li>Everything goes through Convox for real: Agora with Sarvam speech recognition, Sarvam translation, and a Murf Falcon voice. The other person's replies are written by Claude, in their own language.</li>
+    <li>Your browser will ask for the microphone. Headphones help. Pause at the end of each sentence.</li>
+  </ul>
+</main>
+</div>
+<script>
+$("#logo").innerHTML = LOGO;
+(async () => {
+  const stories = await api("/demo/stories");
+  $("#stories").innerHTML = Object.entries(stories).map(([k, s]) => `
+    <form class="story" data-story="${esc(k)}">
+      <p class="story-title">${esc(s.title)}</p>
+      <h2>${esc(s.headline)}</h2>
+      <p class="stakes">${esc(s.stakes)}</p>
+      <div class="persona">
+        <span><b>${esc(s.name)}</b><span class="ai">AI</span> <span class="try-muted">${esc(s.role)} · speaks only the other language</span></span>
+        <label>You, the customer, speak
+          <select name="lang"><option value="hi-IN">हिन्दी · Hindi</option><option value="kn-IN">ಕನ್ನಡ · Kannada</option></select></label>
+      </div>
+      <p class="err" hidden></p>
+      <button type="submit" class="btn btn-dark">Call ${esc(s.name)} <span class="arr" aria-hidden="true">→</span></button>
+    </form>`).join("");
+  document.querySelectorAll("form.story").forEach(f => f.onsubmit = async ev => {
+    ev.preventDefault();
+    const btn = f.querySelector("button"), err = f.querySelector(".err");
+    btn.disabled = true; btn.textContent = "Connecting…";
+    try {
+      const r = await api("/demo/calls", { story: f.dataset.story, lang: new FormData(f).get("lang") });
+      location.href = `/call?ch=${encodeURIComponent(r.channel)}`;
+    } catch (e) { err.hidden = false; err.textContent = `Could not start: ${e.message}`; btn.disabled = false; }
+  });
+})();
+</script>
+</body>
+</html>

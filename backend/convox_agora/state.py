@@ -33,6 +33,8 @@ class Call:
     links: dict[str, str] = field(default_factory=dict)  # role -> phone URL
     joined: dict[str, bool] = field(default_factory=dict)  # role -> that phone is in the channel
     ended: bool = False
+    ai_role: str | None = None  # /demo: this side is played by Claude (persona.py)
+    story: str | None = None  # /demo: key into persona.STORIES
     created_at: float = field(default_factory=time.time)
     subs: set[asyncio.Queue] = field(default_factory=set)
     running: bool = False  # a Claude run is in flight
@@ -75,6 +77,8 @@ class Call:
             "outcome": self.outcome,
             "ended": self.ended,
             "links": self.links,
+            "ai_role": self.ai_role,
+            "story": self.story,
             "joined": self.joined,
         }
 

@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="/static/try.css">
 <link rel="stylesheet" href="/static/host.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/agora-rtc-sdk-ng@4.22.0/AgoraRTC_N-production.js"></script>
 <script src="/static/common.js"></script>
 </head>
 <body class="try-body" data-state="idle">
@@ -30,8 +31,8 @@
 <main>
 <section class="try-head">
   <p class="label">Live call · Agora Conversational AI · Murf Falcon voices</p>
-  <h1>A rider and a customer who don't share a language.</h1>
-  <p class="try-stakes">Each scans a code and talks on their own phone. Convox interprets every line both ways, keeps the
+  <h1 id="headline">A rider and a customer who don't share a language.</h1>
+  <p class="try-stakes" id="stakes">Each scans a code and talks on their own phone. Convox interprets every line both ways, keeps the
     details that matter on a call card, and tells the platform whether the call worked.</p>
 </section>
 
@@ -51,6 +52,9 @@
         <span class="try-clock" id="clock">00:00</span>
       </div>
       <div class="try-controls">
+        <button type="button" class="btn btn-white" id="talk" hidden style="height:46px;padding:0 22px">
+          <svg viewBox="0 0 24 24" aria-hidden="true" style="width:18px;height:18px"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-2.1A7 7 0 0 0 19 12h-2Z"/></svg>
+          Start the call</button>
         <button type="button" class="btn btn-white btn-sm" id="leave" hidden>End call</button>
       </div>
     </div>
@@ -118,9 +122,9 @@ function phoneHTML(role) {
       <div class="statusbar"><span class="clock">9:41</span><span class="sb"><span class="bat"><i></i></span></span></div>
       <div class="callhead">
         <div class="avatar">${NAME[role][0]}</div>
-        <b>${NAME[role]}</b>
+        <b>${NAME[role]}${people && people.ai_role === role ? ' <small class="ai-tag">AI</small>' : ""}</b>
         <span class="via"><span lang="${p.speak_lang.slice(0, 2)}">${lang(p.speak_lang).native}</span> · <span data-role="timer">00:00</span></span>
-        <span class="tag">${MARK("mk-tag")}${NAME[role]}'s phone</span>
+        <span class="tag">${MARK("mk-tag")}${NAME[role] === "You" ? "Your phone" : `${NAME[role]}'s phone`}</span>
       </div>
       <div class="convo" data-role="convo" aria-live="polite" lang="${p.speak_lang.slice(0, 2)}"></div>
       <div class="callfoot">
@@ -155,10 +159,13 @@ function render(state, ch) {
   const joined = state.joined || {};
   if (turns.length && !tLive) tLive = Date.now();
   document.body.dataset.state = state.ended ? "ended" : (Object.keys(joined).length || turns.length) ? "live" : "idle";
-  $("#pill").textContent = state.ended ? "Call ended" : turns.length ? "Live" :
+  if (people.ai_role) $("#pill").textContent = state.ended ? "Call ended" : joined.customer
+    ? `Live · talk to ${NAME.rider} in ${lang(people.customer.speak_lang).english}` : "Tap Start the call, then allow the microphone";
+  else $("#pill").textContent = state.ended ? "Call ended" : turns.length ? "Live" :
     Object.keys(joined).length === 2 ? "Both phones joined · start talking" :
     Object.keys(joined).length ? `${NAME[Object.keys(joined)[0]]} joined · waiting for the other phone` : "Scan the codes with two phones";
   $("#leave").hidden = state.ended;
+  if (state.ended) { $("#talk").hidden = true; if (rtc) leaveRtc(); }
 
   let numsIntact = 0;
   for (const role of ["rider", "customer"]) {
@@ -184,7 +191,7 @@ function render(state, ch) {
   const link = $("#link");
   if (last && Date.now() / 1000 - last.t < 2) link.dataset.dir = last.speaker === "rider" ? "ab" : "ba"; else delete link.dataset.dir;
   link.querySelector('[data-role="dir"]').textContent = last ? `${lang(people[last.speaker].speak_lang).english} → ${lang(people[last.speaker === "rider" ? "customer" : "rider"].speak_lang).english}` : "Convox";
-  link.querySelector('[data-role="timing"]').textContent = last ? `translated in ${secs(last.latency_ms)}` : "on Agora";
+  link.querySelector('[data-role="timing"]').textContent = last?.latency_ms ? `translated in ${secs(last.latency_ms)}` : "on Agora";
 
   const ms = turns.map(l => l.latency_ms).filter(Boolean).sort((x, y) => x - y);
   $("#s-turns").textContent = turns.length;
@@ -228,7 +235,14 @@ $("#oc-close").onclick = () => { $("#outcome").hidden = true; };
 
 async function openCall(ch) {
   const snap = await api(`/calls/${encodeURIComponent(ch)}`);
-  people = snap.people; links = snap.links;
+  people = { ...snap.people, ai_role: snap.ai_role }; links = snap.links;
+  if (snap.ai_role) {  // /demo: Claude plays the rider; you are the customer, on this page
+    const story = (await api("/demo/stories"))[snap.story];
+    NAME.rider = story.name; NAME.customer = "You";
+    $("#headline").textContent = story.headline;
+    $("#stakes").textContent = story.stakes;
+    $("#note").innerHTML = `Left: ${esc(story.name)}'s phone (an AI ${esc(story.role)}), in ${lang(people.rider.speak_lang).native}. Right: yours, in ${lang(people.customer.speak_lang).native}. You hear ${esc(story.name)} through Convox, in a Murf Falcon voice.`;
+  }
   $("#picker").hidden = true;
   $("#crumb").textContent = `Rider ${lang(people.rider.speak_lang).native} ⇄ Customer ${lang(people.customer.speak_lang).native} · live call`;
   drawPhones();
@@ -249,7 +263,40 @@ async function openCall(ch) {
     $("#clock").textContent = t;
     document.querySelectorAll('[data-role="timer"]').forEach(n => { n.textContent = t; });
   }, 500);
-  $("#leave").onclick = async () => { $("#leave").disabled = true; await api(`/calls/${ch}/end`, {}); };
+  $("#leave").onclick = async () => { $("#leave").disabled = true; await leaveRtc(); await api(`/calls/${ch}/end`, {}); };
+  if (snap.ai_role) {
+    $("#talk").hidden = false;
+    $("#talk").onclick = () => joinRtc(ch).catch(e => { $("#pill").textContent = `Could not join: ${e.message}`; $("#talk").disabled = false; });
+  }
+}
+
+// /demo: this page is the customer's phone. Play only my interpreter, publish my mic.
+let rtc = null, mic = null;
+async function joinRtc(ch) {
+  $("#talk").disabled = true;
+  const info = await api(`/calls/${encodeURIComponent(ch)}/join?role=customer`);
+  rtc = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+  rtc.on("user-published", async (user, mediaType) => {
+    if (mediaType !== "audio" || user.uid !== info.play_uid) return;
+    await rtc.subscribe(user, "audio");
+    user.audioTrack.play();
+  });
+  rtc.enableAudioVolumeIndicator();
+  rtc.on("volume-indicator", vols => {
+    const agent = vols.find(v => v.uid === info.play_uid)?.level || 0;
+    const me = vols.find(v => v.uid === info.uid || v.uid === 0)?.level || 0;
+    $("#ph-rider")?.classList.toggle("speaking", agent > 5);
+    $("#ph-customer")?.classList.toggle("speaking", me > 5);
+  });
+  await rtc.join(info.app_id, info.channel, info.token, info.uid);
+  mic = await AgoraRTC.createMicrophoneAudioTrack({ AEC: true, ANS: true, AGC: true });
+  await rtc.publish([mic]);
+  $("#talk").hidden = true;
+  await api(`/calls/${ch}/presence`, { role: "customer" });
+}
+async function leaveRtc() {
+  try { mic?.close(); await rtc?.leave(); } catch (e) { console.warn(e); }
+  rtc = null; mic = null;
 }
 
 $("#start").onclick = async () => {
