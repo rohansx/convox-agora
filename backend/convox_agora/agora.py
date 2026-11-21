@@ -116,7 +116,12 @@ def join_body(call: Call, listener: str, hears_from: str, voice_gender: str | No
 
 
 async def _join(call: Call, client: httpx.AsyncClient, listener: str, body: dict) -> None:
-    r = await client.post(f"{API}/{env('AGORA_APP_ID')}/join", json=body, headers=_auth())
+    try:
+        r = await client.post(f"{API}/{env('AGORA_APP_ID')}/join", json=body, headers=_auth())
+    except httpx.HTTPError as e:  # network blip: say so on the call instead of failing the request
+        log.error("agora.join_unreachable %r", e)
+        call.add_log(f"Agent for {listener} could not reach Agora ({type(e).__name__}); start a new call")
+        return
     if r.status_code >= 400:
         log.error("agora.join_failed %s %s", r.status_code, r.text)
         call.add_log(f"Agent for {listener} failed to join: HTTP {r.status_code} {r.text[:200]}")
@@ -141,9 +146,12 @@ async def start_agents(call: Call, client: httpx.AsyncClient, greeting: str | No
 
 async def stop_agents(call: Call, client: httpx.AsyncClient) -> None:
     for listener, agent_id in list(call.agent_ids.items()):
-        r = await client.post(
-            f"{API}/{env('AGORA_APP_ID')}/agents/{agent_id}/leave", headers=_auth()
-        )
+        try:
+            r = await client.post(f"{API}/{env('AGORA_APP_ID')}/agents/{agent_id}/leave", headers=_auth())
+        except httpx.HTTPError as e:  # it times out on Agora's side anyway (idle_timeout)
+            log.warning("agora.leave_unreachable %r", e)
+            call.agent_ids.pop(listener, None)
+            continue
         if r.status_code >= 400 and r.status_code != 404:
             log.warning("agora.leave_failed %s %s", r.status_code, r.text)
         call.agent_ids.pop(listener, None)

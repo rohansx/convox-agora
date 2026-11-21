@@ -12,7 +12,7 @@ from anthropic import AsyncAnthropic
 
 from convox_agora.state import Call
 
-MODEL = os.environ.get("CONVOX_PERSONA_MODEL", "claude-haiku-5-5")
+MODEL = os.environ.get("CONVOX_PERSONA_MODEL", "claude-sonnet-5-5")  # on the voice path: speed matters
 
 STORIES: dict[str, dict] = {
     "pickup": {
@@ -91,6 +91,7 @@ async def reply(call: Call, client: AsyncAnthropic) -> str:
     resp = await client.messages.create(
         model=MODEL,
         max_tokens=300,
+        thinking={"type": "between_tools"},  # answer straight away: thinking first cost seconds and the budget
         system=f"{story['brief']}\n\n{RULES.format(lang=lang)}",
         messages=convo,
     )

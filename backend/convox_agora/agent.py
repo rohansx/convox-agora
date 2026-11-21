@@ -19,7 +19,8 @@ from convox_agora.state import Call
 
 log = logging.getLogger(__name__)
 
-MODEL = os.environ.get("CONVOX_AGENT_MODEL", "claude-haiku-5-5")
+MODEL = os.environ.get("CONVOX_AGENT_MODEL", "claude-sonnet-5-5")  # in-call capture: background, fast
+JUDGE_MODEL = os.environ.get("CONVOX_JUDGE_MODEL", "claude-opus-5-5")  # end-of-call verdict: accuracy first
 MAX_ROUNDS = 4  # tool round-trips per run
 
 SYSTEM = """You are the background agent of Convox, a live interpreter between a delivery or ride \
@@ -171,12 +172,15 @@ async def run(call: Call, client: AsyncAnthropic, notify: Notify, final: bool = 
     for round_ in range(MAX_ROUNDS):
         # final: reason in one line first (auto), force a tool only if it skipped one; and
         # exactly one judgment, never both outcome tools
-        choice: dict = {"type": "any" if final and round_ > 0 else "auto"}
+        # final: Opus thinks, and forced tool_choice can't combine with thinking, so it stays "auto"
+        # and a skipped tool gets a nudge below. In-call: no thinking, speed first.
+        choice: dict = {"type": "auto"}
         if final:
             choice["disable_parallel_tool_use"] = True
         resp = await client.messages.create(
-            model=MODEL,
-            max_tokens=2048 if final else 1024,
+            model=JUDGE_MODEL if final else MODEL,
+            max_tokens=16000 if final else 1024,
+            **({} if final else {"thinking": {"type": "between_tools"}}),
             system=SYSTEM,
             tools=tools,
             tool_choice=choice,
