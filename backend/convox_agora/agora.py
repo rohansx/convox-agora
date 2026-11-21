@@ -86,6 +86,15 @@ def join_body(call: Call, listener: str, hears_from: str, voice_gender: str | No
             "agent_rtc_uid": agent_uid,
             "remote_rtc_uids": [HUMAN_UID[speaker.role]],  # listen to exactly one human
             "idle_timeout": 120,
+            # End of turn: venue noise kept Agora's VAD "in speech" for 30+ s. A higher threshold
+            # ignores background noise; 600 ms of silence ends the turn.
+            "turn_detection": {
+                "type": "agora_vad",
+                "threshold": float(env("VAD_THRESHOLD") or 0.6),
+                "silence_duration_ms": int(env("VAD_SILENCE_MS") or 600),
+                "prefix_padding_ms": 300,
+                "interrupt_duration_ms": 300,
+            },
             "asr": {  # VERIFY: sarvam vendor param names
                 "vendor": "sarvam",
                 "language": speaker.speak_lang,
