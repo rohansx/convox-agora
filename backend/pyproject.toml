@@ -1,0 +1,8 @@
+[project]
+name = "convox-agora"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = ["fastapi", "uvicorn[standard]", "httpx", "anthropic", "agora-token-builder", "python-dotenv"]
+
+[dependency-groups]
+dev = ["pytest", "pytest-asyncio"]
